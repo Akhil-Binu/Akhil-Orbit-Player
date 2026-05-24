@@ -1,0 +1,14 @@
+AKHIL ORBIT PLAYER COURSE SYLLABUS
+==================================
+
+Unit 1: Introduction to Private Learning
+- 1.1: Welcome to Akhil Orbit Player (.md)
+- 1.2: Course Outline (.txt)
+
+Unit 2: File System Core Mechanics
+- 2.1: File System Access API vs Directory Uploads (.md)
+- 2.2: Node.js Mock Course Generator Code (.js)
+
+Unit 3: Offline Functionality
+- 3.1: Data Persistence (LocalStorage) (.md)
+- 3.2: Exporting Notes (.md)

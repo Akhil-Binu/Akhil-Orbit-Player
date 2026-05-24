@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Core Mechanics Quiz</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+      padding: 24px;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .quiz-container {
+      background-color: rgba(30, 30, 40, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 24px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 10px;
+    }
+    .question {
+      margin-bottom: 20px;
+    }
+    .question-title {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    label {
+      padding: 10px 14px;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+    label:hover {
+      background-color: rgba(255, 255, 255, 0.06);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    input[type="radio"] {
+      accent-color: #6366f1;
+      width: 16px;
+      height: 16px;
+      margin: 0;
+    }
+    .submit-btn {
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      transition: transform 0.1s ease;
+      font-size: 0.9rem;
+    }
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+    }
+    .correct {
+      color: #10b981;
+    }
+    .incorrect {
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-container">
+    <h1>Topic 2: Core Mechanics Quiz 📝</h1>
+    
+    <form id="quiz-form">
+      <div class="question">
+        <div class="question-title">1. Which API allows Akhil Orbit Player to stream files on-demand directly from folders?</div>
+        <div class="options">
+          <label>
+            <input type="radio" name="q1" value="a" required>
+            File System Access API (showDirectoryPicker)
+          </label>
+          <label>
+            <input type="radio" name="q1" value="b">
+            HTML5 Storage API
+          </label>
+          <label>
+            <input type="radio" name="q1" value="c">
+            WebSocket API
+          </label>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="question-title">2. What browser layout fallback is used when showDirectoryPicker is not supported?</div>
+        <div class="options">
+          <label>
+            <input type="radio" name="q2" value="a" required>
+            Local JSON databases
+          </label>
+          <label>
+            <input type="radio" name="q2" value="b">
+            Universal standard file input with webkitdirectory
+          </label>
+          <label>
+            <input type="radio" name="q2" value="c">
+            Offline service workers
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">Check Answers</button>
+    </form>
+
+    <div id="result-box" class="result"></div>
+  </div>
+
+  <script>
+    document.getElementById('quiz-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const q1 = document.querySelector('input[name="q1"]:checked').value;
+      const q2 = document.querySelector('input[name="q2"]:checked').value;
+      
+      const resultBox = document.getElementById('result-box');
+      resultBox.style.display = 'block';
+      
+      if (q1 === 'a' && q2 === 'b') {
+        resultBox.className = 'result correct';
+        resultBox.innerHTML = '🎉 Excellent! You got 100% correct! Great job understanding offline folder loading APIs.';
+      } else {
+        resultBox.className = 'result incorrect';
+        resultBox.innerHTML = '❌ Some answers are incorrect. Review the lesson sheets in Topic 2 and try again!';
+      }
+    });
+  </script>
+</body>
+</html>
