@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { 
   Play, Pause, Volume2, VolumeX, Maximize, Minimize, 
-  Settings, Bookmark 
+  Settings, Bookmark, RotateCcw 
 } from 'lucide-react';
 
 interface SubtitleTrackUrl {
@@ -19,7 +19,104 @@ interface VideoPlayerProps {
   onVideoEnded: () => void;
   onTimeUpdate: (time: number) => void;
   onAddBookmark: (timestamp: number, note: string) => void;
+  onMarkComplete?: () => void;
+  hasNextLesson?: boolean;
 }
+
+// Confetti Component for celebration effect
+const Confetti: React.FC = () => {
+  const [particles, setParticles] = useState<Array<{ id: number; left: number; delay: number; color: string; size: number; duration: number; angle: number }>>([]);
+
+  useEffect(() => {
+    const colors = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+    const p = Array.from({ length: 60 }).map((_, idx) => ({
+      id: idx,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: Math.random() * 8 + 6,
+      duration: Math.random() * 2 + 1.5,
+      angle: Math.random() * 360
+    }));
+    setParticles(p);
+  }, []);
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 12 }}>
+      {particles.map(pt => (
+        <div
+          key={pt.id}
+          style={{
+            position: 'absolute',
+            top: '-20px',
+            left: `${pt.left}%`,
+            width: `${pt.size}px`,
+            height: `${pt.size}px`,
+            backgroundColor: pt.color,
+            borderRadius: pt.id % 2 === 0 ? '50%' : '2px',
+            opacity: 0.8,
+            transform: `rotate(${pt.angle}deg)`,
+            animation: `fallAndSpin ${pt.duration}s linear ${pt.delay}s forwards`
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Countdown Circle Component
+const CountdownCircle: React.FC<{ duration: number; onComplete: () => void }> = ({ duration, onComplete }) => {
+  const [timeLeft, setTimeLeft] = useState(duration);
+  
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      onComplete();
+      return;
+    }
+    const timer = setTimeout(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [timeLeft, onComplete]);
+
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (timeLeft / duration) * circumference;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+      <div style={{ position: 'relative', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
+          <circle
+            cx="22"
+            cy="22"
+            r={radius}
+            fill="none"
+            stroke="rgba(255,255,255,0.1)"
+            strokeWidth="3"
+          />
+          <circle
+            cx="22"
+            cy="22"
+            r={radius}
+            fill="none"
+            stroke="var(--color-primary)"
+            strokeWidth="3"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            style={{ transition: 'stroke-dashoffset 1s linear' }}
+          />
+        </svg>
+        <span style={{ position: 'absolute', fontSize: '0.8rem', fontWeight: 600, color: 'white' }}>
+          {timeLeft}
+        </span>
+      </div>
+      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+        Next lesson in {timeLeft}s
+      </span>
+    </div>
+  );
+};
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoSrc,
@@ -29,7 +126,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   courseId,
   onVideoEnded,
   onTimeUpdate,
-  onAddBookmark
+  onAddBookmark,
+  onMarkComplete,
+  hasNextLesson = false
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -45,6 +144,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [isSubtitlesOn, setIsSubtitlesOn] = useState(false);
   const [resumeNotice, setResumeNotice] = useState('');
+  const [showCompletion, setShowCompletion] = useState(false);
 
   const resumeKey = `resume_${courseId}_${lessonPath}`;
 
@@ -55,6 +155,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setDuration(0);
     setResumeNotice('');
     setShowSpeedMenu(false);
+    setShowCompletion(false);
     if (videoRef.current) {
       videoRef.current.playbackRate = playbackRate;
     }
@@ -74,12 +175,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           togglePlay();
           break;
         case 'ArrowRight':
+        case 'KeyL':
           e.preventDefault();
-          seek(5);
+          seek(10);
           break;
         case 'ArrowLeft':
+        case 'KeyJ':
           e.preventDefault();
-          seek(-5);
+          seek(-10);
           break;
         case 'KeyF':
           e.preventDefault();
@@ -98,7 +201,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, isFullscreen, isMuted, isSubtitlesOn]);
+  }, [isPlaying, isFullscreen, isMuted, isSubtitlesOn, showCompletion]);
 
   // Hide controls after 2.5s of mouse inactivity
   useEffect(() => {
@@ -127,6 +230,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const togglePlay = () => {
     if (!videoRef.current) return;
+    if (showCompletion) {
+      handleReplay();
+      return;
+    }
     if (isPlaying) {
       videoRef.current.pause();
       setIsPlaying(false);
@@ -138,10 +245,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const seek = (amount: number) => {
     if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.min(
+    if (showCompletion) {
+      setShowCompletion(false);
+    }
+    const newTime = Math.min(
       Math.max(0, videoRef.current.currentTime + amount),
       duration
     );
+    videoRef.current.currentTime = newTime;
+    setCurrentTimeState(newTime);
   };
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,6 +261,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const newTime = parseFloat(e.target.value);
     videoRef.current.currentTime = newTime;
     setCurrentTimeState(newTime);
+    if (showCompletion) {
+      setShowCompletion(false);
+    }
   };
 
   const toggleMute = () => {
@@ -250,7 +365,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleVideoEnded = () => {
     setIsPlaying(false);
     localStorage.removeItem(resumeKey); // Clear resume marker when finished
-    onVideoEnded();
+    
+    // Notify parent immediately to check sidebar box
+    if (onMarkComplete) {
+      onMarkComplete();
+    }
+    
+    // Show completion screen celebration overlay
+    setShowCompletion(true);
+  };
+
+  const handleReplay = () => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = 0;
+    setCurrentTimeState(0);
+    setShowCompletion(false);
+    videoRef.current.play().catch(err => console.log('Playback replay error:', err));
+    setIsPlaying(true);
   };
 
   const formatTime = (secs: number) => {
@@ -261,7 +392,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     
     const minutesStr = m.toString().padStart(2, '0');
     const secondsStr = s.toString().padStart(2, '0');
-
+ 
     if (h > 0) {
       return `${h}:${minutesStr}:${secondsStr}`;
     }
@@ -294,6 +425,38 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         justifyContent: 'center'
       }}
     >
+      {/* CSS Animations style block */}
+      <style>{`
+        @keyframes strokeCheckmark {
+          100% { stroke-dashoffset: 0; }
+        }
+        @keyframes scaleCheckmark {
+          0%, 100% { transform: none; }
+          50% { transform: scale3d(1.1, 1.1, 1); }
+        }
+        @keyframes fillCheckmark {
+          100% { box-shadow: inset 0 0 0 30px #10b981; }
+        }
+        @keyframes fallAndSpin {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(600px) rotate(720deg);
+            opacity: 0;
+          }
+        }
+        @keyframes overlayFadeIn {
+          from { opacity: 0; backdrop-filter: blur(0px); }
+          to { opacity: 1; backdrop-filter: blur(16px); }
+        }
+        @keyframes cardPopIn {
+          from { transform: scale(0.9); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+
       <video
         ref={videoRef}
         src={videoSrc}
@@ -321,6 +484,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ))}
       </video>
 
+      {/* Mini bottom progress bar (visible when controls are hidden during active playback) */}
+      {!showControls && isPlaying && !showCompletion && (
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '3px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          zIndex: 4
+        }}>
+          <div style={{
+            height: '100%',
+            width: `${(currentTimeState / (duration || 100)) * 100}%`,
+            backgroundColor: 'var(--color-primary)',
+            boxShadow: '0 0 6px var(--color-primary)',
+            transition: 'width 0.1s linear'
+          }} />
+        </div>
+      )}
+
       {/* Toast Notice for Resuming */}
       {resumeNotice && (
         <div style={{
@@ -343,8 +527,212 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
+      {/* Completion Overlay Screen */}
+      {showCompletion && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: 'rgba(9, 9, 11, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          animation: 'overlayFadeIn 0.4s ease forwards',
+          color: 'white',
+          padding: '24px'
+        }}>
+          {/* Confetti celebration */}
+          <Confetti />
+
+          {/* Close button to dismiss overlay */}
+          <button
+            onClick={() => setShowCompletion(false)}
+            title="Dismiss Completion Screen"
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'rgba(255,255,255,0.7)',
+              cursor: 'pointer',
+              zIndex: 13,
+              fontSize: '1.2rem',
+              lineHeight: '1',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
+              e.currentTarget.style.color = 'white';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+              e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+            }}
+          >
+            &times;
+          </button>
+
+          {/* Completion Card */}
+          <div style={{
+            width: '100%',
+            maxWidth: '380px',
+            background: 'rgba(20, 20, 25, 0.7)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '20px',
+            padding: '32px 24px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            boxShadow: 'var(--shadow-neon), 0 20px 40px rgba(0,0,0,0.6)',
+            animation: 'cardPopIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+            zIndex: 11
+          }}>
+            {/* SVG Animated Checkmark */}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              display: 'block',
+              strokeWidth: 4,
+              stroke: '#10b981',
+              strokeMiterlimit: 10,
+              boxShadow: 'inset 0 0 0 #10b981',
+              animation: 'fillCheckmark .4s ease-in-out .4s forwards, scaleCheckmark .3s ease-in-out .9s both',
+              margin: '0 auto 16px auto'
+            }}>
+              <circle cx="26" cy="26" r="25" fill="none" style={{
+                strokeDasharray: 166,
+                strokeDashoffset: 166,
+                strokeWidth: 4,
+                strokeMiterlimit: 10,
+                stroke: '#10b981',
+                fill: 'none',
+                animation: 'strokeCheckmark 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards'
+              }}/>
+              <path fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" style={{
+                transformOrigin: '50% 50%',
+                strokeDasharray: 48,
+                strokeDashoffset: 48,
+                stroke: '#ffffff',
+                animation: 'strokeCheckmark 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards'
+              }}/>
+            </svg>
+
+            <h2 style={{
+              fontSize: '1.45rem',
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #a5b4fc 0%, #818cf8 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              marginBottom: '6px',
+              letterSpacing: '-0.02em'
+            }}>
+              Lesson Completed!
+            </h2>
+            <p style={{
+              fontSize: '0.88rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '24px',
+              maxWidth: '90%',
+              lineHeight: '1.4'
+            }}>
+              {lessonName}
+            </p>
+
+            {/* Countdown timer / completion banner */}
+            {hasNextLesson ? (
+              <div style={{ marginBottom: '24px' }}>
+                <CountdownCircle duration={5} onComplete={onVideoEnded} />
+              </div>
+            ) : (
+              <div style={{
+                marginBottom: '24px',
+                fontSize: '0.82rem',
+                color: 'var(--color-success)',
+                fontWeight: 600,
+                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                padding: '6px 16px',
+                borderRadius: '20px',
+                border: '1px solid rgba(16, 185, 129, 0.2)'
+              }}>
+                🎉 Course Completed!
+              </div>
+            )}
+
+            {/* Completion Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              width: '100%',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={handleReplay}
+                style={{
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  color: 'white',
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }}
+              >
+                <RotateCcw size={15} />
+                Replay
+              </button>
+
+              {hasNextLesson && (
+                <button
+                  onClick={onVideoEnded}
+                  style={{
+                    flex: 1,
+                    background: 'var(--gradient-accent)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '10px 14px',
+                    color: 'white',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'opacity 0.2s',
+                    boxShadow: 'var(--shadow-neon)'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                >
+                  Next Lesson
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Controls Overlay */}
-      {showControls && (
+      {showControls && !showCompletion && (
         <div style={{
           position: 'absolute',
           bottom: 0,
@@ -359,7 +747,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           transition: 'opacity 0.25s ease',
           opacity: 1
         }}>
-          {/* Progress Slider */}
+          {/* Progress Slider with Dynamic Gradient Track */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '0.78rem', color: 'white', fontVariationSettings: '"tnum" 1' }}>
               {formatTime(currentTimeState)}
@@ -374,8 +762,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               style={{
                 flex: 1,
                 cursor: 'pointer',
-                height: '4px'
+                height: '5px',
+                borderRadius: '3px',
+                background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${(currentTimeState / (duration || 100)) * 100}%, rgba(255,255,255,0.15) ${(currentTimeState / (duration || 100)) * 100}%, rgba(255,255,255,0.15) 100%)`,
+                transition: 'height 0.15s ease'
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.height = '7px'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.height = '5px'; }}
             />
             <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', fontVariationSettings: '"tnum" 1' }}>
               {formatTime(duration)}
@@ -386,6 +779,53 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Left buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {/* Toolbar Replay Button */}
+              <button 
+                onClick={handleReplay} 
+                title="Replay from start"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.8)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  transition: 'color var(--transition-fast)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'white'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.8)'}
+              >
+                <RotateCcw size={16} />
+              </button>
+
+              {/* Skip 10s Backward */}
+              <button 
+                onClick={() => seek(-10)} 
+                title="Skip backward 10s (J / ArrowLeft)"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.8)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  transition: 'color var(--transition-fast)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'white'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.8)'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                  <text x="12" y="15.5" fontSize="8" fontFamily="Outfit, system-ui, sans-serif" fontWeight="bold" fill="currentColor" textAnchor="middle">10</text>
+                </svg>
+              </button>
+
+              {/* Play / Pause */}
               <button 
                 onClick={togglePlay} 
                 style={{
@@ -399,6 +839,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 }}
               >
                 {isPlaying ? <Pause size={20} fill="white" /> : <Play size={20} fill="white" />}
+              </button>
+
+              {/* Skip 10s Forward */}
+              <button 
+                onClick={() => seek(10)} 
+                title="Skip forward 10s (L / ArrowRight)"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.8)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  transition: 'color var(--transition-fast)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = 'white'}
+                onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.8)'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                  <path d="M21 3v5h-5"/>
+                  <text x="12" y="15.5" fontSize="8" fontFamily="Outfit, system-ui, sans-serif" fontWeight="bold" fill="currentColor" textAnchor="middle">10</text>
+                </svg>
               </button>
 
               {/* Volume Slider */}
@@ -447,8 +913,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     borderRadius: '4px',
                     transition: 'background 0.2s'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
                   <div style={{
                     border: isSubtitlesOn ? '1.5px solid var(--color-primary)' : '1.5px solid rgba(255,255,255,0.8)',
@@ -524,8 +990,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   padding: '4px 8px',
                   borderRadius: '4px'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
               >
                 <Settings size={15} />
                 <span>{playbackRate}x</span>
@@ -567,8 +1033,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         borderRadius: '4px',
                         fontWeight: playbackRate === rate ? 600 : 400
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                     >
                       {rate}x
                     </button>

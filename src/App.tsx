@@ -341,6 +341,16 @@ export default function App() {
             onVideoEnded={handleVideoEnded}
             onTimeUpdate={setVideoCurrentTime}
             onAddBookmark={handleAddBookmark}
+            onMarkComplete={() => {
+              if (currentLesson && !completedLessons[currentLesson.path]) {
+                handleToggleCompleted(currentLesson.path);
+              }
+            }}
+            hasNextLesson={(() => {
+              if (!courseData || !currentLesson) return false;
+              const idx = courseData.flatLessons.findIndex(f => f.path === currentLesson.path);
+              return idx !== -1 && idx < courseData.flatLessons.length - 1;
+            })()}
           />
         ) : null;
         
