@@ -785,6 +785,38 @@ export default function App() {
             <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '0.95rem', lineHeight: '1.5' }}>
               Load, play, and organize course contents directly from your local folders. Fast, private, and fully offline.
             </p>
+            <div style={{ marginTop: '12px' }}>
+              <a 
+                href="https://akhil-orbit-player.vercel.app/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8rem',
+                  color: 'var(--color-primary)',
+                  textDecoration: 'none',
+                  background: 'rgba(99, 102, 241, 0.08)',
+                  padding: '5px 12px',
+                  borderRadius: '20px',
+                  border: '1px solid rgba(99, 102, 241, 0.15)',
+                  transition: 'all 0.2s ease',
+                  fontWeight: 500
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)';
+                  e.currentTarget.style.borderColor = 'var(--color-primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(99, 102, 241, 0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.15)';
+                }}
+              >
+                <ExternalLink size={12} />
+                akhil-orbit-player.vercel.app
+              </a>
+            </div>
           </div>
 
           {/* Directory Selectors */}
