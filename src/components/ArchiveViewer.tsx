@@ -1007,13 +1007,13 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
                       <pre style={{
                         flex: 1,
                         margin: 0,
-                        padding: '14px 18px',
+                        padding: '16px 20px',
                         background: '#09090e',
                         overflow: 'auto',
                         color: '#e2e8f0',
                         fontFamily: 'Fira Code, monospace',
-                        fontSize: '0.82rem',
-                        lineHeight: '1.6'
+                        fontSize: '0.98rem',
+                        lineHeight: '1.65'
                       }}>
                         <code>{innerFileState.textData}</code>
                       </pre>

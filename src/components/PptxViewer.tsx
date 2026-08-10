@@ -822,7 +822,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({
                   /* 16:9 High-Fidelity Slide Canvas */
                   <div style={{
                     width: '100%',
-                    maxWidth: '920px',
+                    maxWidth: '1150px',
                     aspectRatio: '16/9',
                     background: 'linear-gradient(135deg, #181824 0%, #0f0f18 100%)',
                     border: '1px solid rgba(255,255,255,0.12)',
@@ -880,7 +880,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({
                                       style={{
                                         fontWeight: r.bold || el.isTitle ? 700 : 400,
                                         fontStyle: r.italic ? 'italic' : 'normal',
-                                        fontSize: el.isTitle ? '1.5rem' : r.fontSize ? `${Math.min(22, Math.max(12, r.fontSize * 0.75))}px` : '0.96rem',
+                                        fontSize: el.isTitle ? '1.85rem' : r.fontSize ? `${Math.min(28, Math.max(14, r.fontSize * 0.95))}px` : '1.15rem',
                                         color: el.isTitle ? '#ffffff' : '#e2e8f0',
                                         lineHeight: '1.45',
                                         background: el.isTitle ? 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)' : 'none',

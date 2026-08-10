@@ -35,7 +35,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [zoom, setZoom] = useState<number>(100);
+  const [zoom, setZoom] = useState<number>(125);
   const [rotation, setRotation] = useState<number>(0);
   const [viewMode, setViewMode] = useState<'single' | 'continuous'>('single');
   const [renderPageLoading, setRenderPageLoading] = useState<boolean>(false);
@@ -115,13 +115,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         if (!context) return;
 
         // Compute high-DPI scaled viewport
-        const scale = (zoom / 100) * 1.5;
+        const scale = (zoom / 100) * 2.0;
         const viewport = page.getViewport({ scale, rotation });
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        canvas.style.width = `${viewport.width / 1.5}px`;
-        canvas.style.height = `${viewport.height / 1.5}px`;
+        canvas.style.width = `${viewport.width / 2.0}px`;
+        canvas.style.height = `${viewport.height / 2.0}px`;
 
         const renderContext = {
           canvasContext: context,
@@ -190,13 +190,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         const context = canvas.getContext('2d');
         if (!context) continue;
 
-        const scale = (zoom / 100) * 1.5;
+        const scale = (zoom / 100) * 2.0;
         const viewport = page.getViewport({ scale, rotation });
 
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        canvas.style.width = `${viewport.width / 1.5}px`;
-        canvas.style.height = `${viewport.height / 1.5}px`;
+        canvas.style.width = `${viewport.width / 2.0}px`;
+        canvas.style.height = `${viewport.height / 2.0}px`;
 
         pageWrapper.appendChild(canvas);
         container.appendChild(pageWrapper);
@@ -367,7 +367,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               {zoom}%
             </span>
             <button
-              onClick={() => setZoom(prev => Math.min(200, prev + 15))}
+              onClick={() => setZoom(prev => Math.min(300, prev + 15))}
               title="Zoom In"
               style={{
                 background: 'transparent',

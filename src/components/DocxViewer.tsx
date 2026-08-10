@@ -25,7 +25,7 @@ export const DocxViewer: React.FC<DocxViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [fallbackHtml, setFallbackHtml] = useState<string | null>(null);
   const [isLegacyDoc, setIsLegacyDoc] = useState<boolean>(false);
-  const [zoom, setZoom] = useState<number>(100);
+  const [zoom, setZoom] = useState<number>(115);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
@@ -131,7 +131,7 @@ export const DocxViewer: React.FC<DocxViewerProps> = ({
 
             if (paragraphs.length > 0) {
               const html = paragraphs
-                .map(p => `<p style="color: #334155; font-size: 1rem; line-height: 1.7; margin-bottom: 14px;">${p}</p>`)
+                .map(p => `<p style="color: #334155; font-size: 1.15rem; line-height: 1.8; margin-bottom: 18px;">${p}</p>`)
                 .join('');
               
               if (!isCancelled) {
@@ -439,9 +439,9 @@ export const DocxViewer: React.FC<DocxViewerProps> = ({
               transformOrigin: 'top center',
               transition: 'transform 0.15s ease',
               width: '100%',
-              maxWidth: '800px',
+              maxWidth: '900px',
               background: themeMode === 'light' ? '#ffffff' : '#181820',
-              padding: '48px 56px',
+              padding: '56px 64px',
               borderRadius: '8px',
               boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
               filter: themeMode === 'dark' ? 'invert(0.9) hue-rotate(180deg)' : 'none'

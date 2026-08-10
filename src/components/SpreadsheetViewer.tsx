@@ -352,7 +352,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({
               <table style={{
                 borderCollapse: 'collapse',
                 width: '100%',
-                fontSize: '0.82rem',
+                fontSize: '0.96rem',
                 fontFamily: 'Fira Code, monospace',
                 tableLayout: 'auto'
               }}>
@@ -369,7 +369,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({
                       borderRight: '1px solid var(--border-color)',
                       width: '45px',
                       minWidth: '45px',
-                      padding: '8px',
+                      padding: '10px 8px',
                       color: 'var(--text-muted)'
                     }} />
                     {Array.from({ length: maxCols }).map((_, colIdx) => (
@@ -382,11 +382,11 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({
                           background: '#15151e',
                           borderBottom: '1px solid var(--border-color)',
                           borderRight: '1px solid rgba(255,255,255,0.06)',
-                          padding: '8px 12px',
+                          padding: '10px 14px',
                           color: 'var(--text-muted)',
                           fontWeight: 600,
                           textAlign: 'center',
-                          minWidth: '120px'
+                          minWidth: '130px'
                         }}
                       >
                         {getColLetter(colIdx)}
@@ -412,11 +412,11 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({
                           background: '#15151e',
                           borderRight: '1px solid var(--border-color)',
                           borderBottom: '1px solid rgba(255,255,255,0.06)',
-                          padding: '6px 8px',
+                          padding: '8px 10px',
                           color: 'var(--text-muted)',
                           textAlign: 'center',
                           fontWeight: 600,
-                          fontSize: '0.75rem',
+                          fontSize: '0.85rem',
                           userSelect: 'none'
                         }}>
                           {actualRowIdx + 1}
@@ -432,13 +432,13 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({
                               style={{
                                 borderRight: '1px solid rgba(255,255,255,0.04)',
                                 borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                padding: '6px 12px',
+                                padding: '9px 14px',
                                 color: isHeader ? 'var(--color-primary)' : 'var(--text-primary)',
                                 fontWeight: isHeader ? 600 : 400,
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
-                                maxWidth: '300px'
+                                maxWidth: '340px'
                               }}
                               title={cellValue}
                             >

@@ -522,13 +522,13 @@ export default function App() {
             <pre style={{
               flex: 1,
               margin: 0,
-              padding: '20px',
+              padding: '24px',
               background: '#0d0d11',
               overflow: 'auto',
               color: '#38bdf8',
               fontFamily: 'Fira Code, monospace',
-              fontSize: '0.88rem',
-              lineHeight: '1.5'
+              fontSize: '1.02rem',
+              lineHeight: '1.6'
             }}>
               <code>{currentTextContent}</code>
             </pre>
