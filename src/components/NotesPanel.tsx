@@ -67,16 +67,9 @@ function parseMarkdown(md: string): string {
 
 export const NotesPanel: React.FC<NotesPanelProps> = ({ courseId, lessonPath }) => {
   const storageKey = `notes_${courseId}_${lessonPath}`;
-  const [noteText, setNoteText] = useState('');
+  const [noteText, setNoteText] = useState(() => localStorage.getItem(storageKey) || '');
   const [mode, setMode] = useState<'edit' | 'preview'>('edit');
   const [isSaved, setIsSaved] = useState(false);
-
-  // Load notes on mount/lesson switch
-  useEffect(() => {
-    const savedNote = localStorage.getItem(storageKey) || '';
-    setNoteText(savedNote);
-    setIsSaved(false);
-  }, [storageKey]);
 
   // Auto-save notes
   useEffect(() => {

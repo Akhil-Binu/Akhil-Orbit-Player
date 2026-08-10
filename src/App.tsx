@@ -10,6 +10,8 @@ import { Sidebar } from './components/Sidebar';
 import { VideoPlayer } from './components/VideoPlayer';
 import { NotesPanel } from './components/NotesPanel';
 import { BookmarksPanel } from './components/BookmarksPanel';
+import { ArchiveViewer } from './components/ArchiveViewer';
+import { DocumentViewer } from './components/DocumentViewer';
 import type { VideoBookmark } from './components/BookmarksPanel';
 
 export default function App() {
@@ -17,6 +19,7 @@ export default function App() {
   const [currentLesson, setCurrentLesson] = useState<CourseFile | null>(null);
   const [currentContentUrl, setCurrentContentUrl] = useState<string | null>(null);
   const [currentTextContent, setCurrentTextContent] = useState<string>('');
+  const [currentFileObject, setCurrentFileObject] = useState<File | null>(null);
   
   // Track completions and bookmarks in LocalStorage
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>({});
@@ -31,38 +34,18 @@ export default function App() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [currentSubtitles, setCurrentSubtitles] = useState<{ label: string; srclang: string; url: string }[]>([]);
 
-  // Sync completion states with local storage when course loads
-  useEffect(() => {
-    if (!courseData) return;
-    const key = `completed_${courseData.title}`;
+  // Helper to load course & initialize saved completion states
+  const loadCourse = (data: CourseData) => {
+    setCourseData(data);
+    const key = `completed_${data.title}`;
     try {
       const saved = localStorage.getItem(key);
-      if (saved) {
-        setCompletedLessons(JSON.parse(saved));
-      } else {
-        setCompletedLessons({});
-      }
+      setCompletedLessons(saved ? JSON.parse(saved) : {});
     } catch (e) {
       console.error('Error loading completion states', e);
+      setCompletedLessons({});
     }
-  }, [courseData]);
-
-  // Sync bookmarks for active lesson
-  useEffect(() => {
-    if (!courseData || !currentLesson) return;
-    const key = `bookmarks_${courseData.title}_${currentLesson.path}`;
-    try {
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        setBookmarks(JSON.parse(saved));
-      } else {
-        setBookmarks([]);
-      }
-    } catch (e) {
-      console.error('Error loading bookmarks', e);
-    }
-    setVideoCurrentTime(0);
-  }, [courseData, currentLesson]);
+  };
 
   // Revoke Object URLs on lesson switch to prevent memory leaks
   useEffect(() => {
@@ -83,19 +66,31 @@ export default function App() {
   }, [currentSubtitles]);
 
   // Helper to load selected lesson content
-  const loadLesson = async (lesson: CourseFile) => {
+  const loadLesson = async (lesson: CourseFile, targetCourse?: CourseData | null) => {
     setIsLoading(true);
+    const activeCourse = targetCourse || courseData;
+    if (activeCourse) {
+      const key = `bookmarks_${activeCourse.title}_${lesson.path}`;
+      try {
+        const saved = localStorage.getItem(key);
+        setBookmarks(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        console.error('Error loading bookmarks', e);
+        setBookmarks([]);
+      }
+    }
+    setVideoCurrentTime(0);
+
     try {
-      // Clear previous URL & subtitles
+      // Clear previous URL & subtitles & file objects immediately
       if (currentContentUrl) {
         URL.revokeObjectURL(currentContentUrl);
         setCurrentContentUrl(null);
       }
       currentSubtitles.forEach(track => URL.revokeObjectURL(track.url));
       setCurrentSubtitles([]);
-      
       setCurrentTextContent('');
-      setCurrentLesson(lesson);
+      setCurrentFileObject(null);
 
       const fileObj = await getFileObject(lesson);
 
@@ -107,7 +102,7 @@ export default function App() {
         if (lesson.type === 'video' && lesson.subtitles && lesson.subtitles.length > 0) {
           const resolvedTracks = await Promise.all(
             lesson.subtitles.map(async (track) => {
-              const trackFile = await getFileObject(track as any);
+              const trackFile = await getFileObject(track as unknown as CourseFile);
               const trackUrl = URL.createObjectURL(trackFile);
               return {
                 label: track.label,
@@ -132,6 +127,10 @@ export default function App() {
         const text = await fileObj.text();
         setCurrentTextContent(text);
       }
+
+      // Atomically set active lesson and matching file object
+      setCurrentFileObject(fileObj);
+      setCurrentLesson(lesson);
     } catch (err) {
       console.error('Error loading lesson file:', err);
       alert('Failed to load file from local storage. Please ensure access is allowed.');
@@ -204,17 +203,18 @@ export default function App() {
   const handleSelectDirectory = async () => {
     setIsLoading(true);
     try {
-      const dirHandle = await (window as any).showDirectoryPicker();
+      const picker = (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
+      const dirHandle = await picker();
       const parsedFolder = await parseDirectory(dirHandle);
       const data = buildCourseDataFromFolder(parsedFolder);
-      setCourseData(data);
+      loadCourse(data);
       
       // Auto-load first lesson
       if (data.flatLessons.length > 0) {
-        loadLesson(data.flatLessons[0]);
+        loadLesson(data.flatLessons[0], data);
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+    } catch (err: unknown) {
+      if ((err as Error).name !== 'AbortError') {
         console.error('Directory Picker Error:', err);
         alert('Failed to read folder. Please try the standard folder upload fallback.');
       }
@@ -229,9 +229,9 @@ export default function App() {
     setIsLoading(true);
     try {
       const data = parseFileList(e.target.files);
-      setCourseData(data);
+      loadCourse(data);
       if (data.flatLessons.length > 0) {
-        loadLesson(data.flatLessons[0]);
+        loadLesson(data.flatLessons[0], data);
       }
     } catch (err) {
       console.error(err);
@@ -251,9 +251,9 @@ export default function App() {
       setIsLoading(true);
       try {
         const data = parseFileList(e.dataTransfer.files);
-        setCourseData(data);
+        loadCourse(data);
         if (data.flatLessons.length > 0) {
-          loadLesson(data.flatLessons[0]);
+          loadLesson(data.flatLessons[0], data);
         }
       } catch (err) {
         console.error(err);
@@ -329,10 +329,16 @@ export default function App() {
       );
     }
 
+    const currentFlatIndex = courseData && currentLesson
+      ? courseData.flatLessons.findIndex(f => f.path === currentLesson.path)
+      : -1;
+    const hasNextLesson = !!(courseData && currentFlatIndex !== -1 && currentFlatIndex < courseData.flatLessons.length - 1);
+
     switch (currentLesson.type) {
       case 'video':
         return currentContentUrl ? (
           <VideoPlayer
+            key={currentLesson.path}
             videoSrc={currentContentUrl}
             subtitles={currentSubtitles}
             lessonName={currentLesson.name}
@@ -341,16 +347,12 @@ export default function App() {
             onVideoEnded={handleVideoEnded}
             onTimeUpdate={setVideoCurrentTime}
             onAddBookmark={handleAddBookmark}
-            onMarkComplete={() => {
-              if (currentLesson && !completedLessons[currentLesson.path]) {
+            hasNextLesson={hasNextLesson}
+            onVideoCompleted={() => {
+              if (courseData && currentLesson && !completedLessons[currentLesson.path]) {
                 handleToggleCompleted(currentLesson.path);
               }
             }}
-            hasNextLesson={(() => {
-              if (!courseData || !currentLesson) return false;
-              const idx = courseData.flatLessons.findIndex(f => f.path === currentLesson.path);
-              return idx !== -1 && idx < courseData.flatLessons.length - 1;
-            })()}
           />
         ) : null;
         
@@ -416,17 +418,13 @@ export default function App() {
         ) : null;
         
       case 'pdf':
-        return currentContentUrl ? (
-          <iframe
-            src={`${currentContentUrl}#toolbar=0`}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              background: '#2b2b2b'
-            }}
-            title={currentLesson.name}
+        return currentFileObject && currentContentUrl ? (
+          <DocumentViewer
+            lesson={currentLesson}
+            fileObj={currentFileObject}
+            contentUrl={currentContentUrl}
+            onToggleCompleted={handleToggleCompleted}
+            isCompleted={!!completedLessons[currentLesson.path]}
           />
         ) : null;
         
@@ -673,6 +671,27 @@ export default function App() {
           </div>
         ) : null;
         
+      case 'archive':
+        return currentFileObject ? (
+          <ArchiveViewer
+            lesson={currentLesson}
+            fileObj={currentFileObject}
+            onToggleCompleted={handleToggleCompleted}
+            isCompleted={!!completedLessons[currentLesson.path]}
+          />
+        ) : null;
+        
+      case 'document':
+        return currentFileObject ? (
+          <DocumentViewer
+            lesson={currentLesson}
+            fileObj={currentFileObject}
+            contentUrl={currentContentUrl}
+            onToggleCompleted={handleToggleCompleted}
+            isCompleted={!!completedLessons[currentLesson.path]}
+          />
+        ) : null;
+        
       default:
         return (
           <div style={{
@@ -739,6 +758,10 @@ export default function App() {
     
     return html;
   };
+
+  const totalLessons = courseData ? courseData.flatLessons.length : 0;
+  const completedCount = courseData ? courseData.flatLessons.filter(f => completedLessons[f.path]).length : 0;
+  const percentComplete = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
   // Render upload landing page if no course is loaded
   if (!courseData) {
@@ -886,7 +909,7 @@ export default function App() {
               Upload Directory (Fallback)
               <input
                 type="file"
-                // @ts-ignore - webkitdirectory is custom attribute
+                // @ts-expect-error - webkitdirectory is custom attribute
                 webkitdirectory=""
                 directory=""
                 multiple
@@ -1002,6 +1025,43 @@ export default function App() {
           >
             {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </button>
+
+          {/* Header Course Progress Bar */}
+          {courseData && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              flex: 1,
+              maxWidth: '320px',
+              margin: '0 24px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              padding: '6px 12px',
+              borderRadius: '20px',
+              border: '1px solid var(--border-color)',
+              backdropFilter: 'blur(8px)'
+            }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                Course Progress: {percentComplete}%
+              </span>
+              <div style={{
+                flex: 1,
+                height: '6px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                borderRadius: '3px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${percentComplete}%`,
+                  height: '100%',
+                  background: 'var(--gradient-accent)',
+                  borderRadius: '3px',
+                  boxShadow: '0 0 8px rgba(99, 102, 241, 0.3)',
+                  transition: 'width 0.4s ease'
+                }} />
+              </div>
+            </div>
+          )}
 
           {/* Navigation Controls */}
           {currentLesson && (
@@ -1127,6 +1187,7 @@ export default function App() {
           <div style={{ flex: 1, height: '0px' }}>
             {rightPanelTab === 'notes' || currentLesson.type !== 'video' ? (
               <NotesPanel 
+                key={`notes_${courseData.title}_${currentLesson.path}`}
                 courseId={courseData.title}
                 lessonPath={currentLesson.path}
               />

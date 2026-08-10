@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Folder, FolderOpen, Video, FileText, Music, Image, Code, FileQuestion, 
-  ChevronRight, ChevronDown, CheckSquare, Square, Search, Link2 
+  ChevronRight, ChevronDown, CheckSquare, Square, Search, Link2, Archive,
+  Presentation, Table
 } from 'lucide-react';
 import type { CourseData, CourseFolder, CourseFile } from '../utils/fileSystem';
 
@@ -33,7 +34,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }));
   };
 
-  const getLessonIcon = (type: string) => {
+  const getLessonIcon = (type: string, fileName = '') => {
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    if (type === 'document') {
+      if (['pptx', 'ppt', 'ppsx', 'odp'].includes(ext)) {
+        return <Presentation size={16} style={{ color: '#f97316' }} />;
+      }
+      if (['xlsx', 'xls', 'csv', 'tsv', 'ods'].includes(ext)) {
+        return <Table size={16} style={{ color: '#10b981' }} />;
+      }
+      return <FileText size={16} style={{ color: '#3b82f6' }} />;
+    }
     switch (type) {
       case 'video': return <Video size={16} style={{ color: '#818cf8' }} />;
       case 'pdf': return <FileText size={16} style={{ color: '#f87171' }} />;
@@ -45,6 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'html': return <FileQuestion size={16} style={{ color: '#fbbf24' }} />;
       case 'subtitle': return <FileText size={16} style={{ color: '#a78bfa' }} />;
       case 'url': return <Link2 size={16} style={{ color: '#60a5fa' }} />;
+      case 'archive': return <Archive size={16} style={{ color: '#f59e0b' }} />;
       default: return <FileQuestion size={16} style={{ color: '#9ca3af' }} />;
     }
   };
@@ -176,7 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {isCompleted ? <CheckSquare size={16} /> : <Square size={16} />}
                   </div>
 
-                  {getLessonIcon(file.type)}
+                  {getLessonIcon(file.type, file.name)}
                   
                   <span style={{
                     whiteSpace: 'nowrap',

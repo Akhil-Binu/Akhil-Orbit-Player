@@ -1,4 +1,4 @@
-export type FileType = 'video' | 'audio' | 'pdf' | 'markdown' | 'text' | 'image' | 'code' | 'html' | 'subtitle' | 'url' | 'unknown';
+export type FileType = 'video' | 'audio' | 'pdf' | 'markdown' | 'text' | 'image' | 'code' | 'html' | 'subtitle' | 'url' | 'archive' | 'document' | 'unknown';
 
 export interface SubtitleTrack {
   label: string;
@@ -39,6 +39,12 @@ export function getFileType(fileName: string): FileType {
   }
   if (ext === 'url') {
     return 'url';
+  }
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'jar'].includes(ext)) {
+    return 'archive';
+  }
+  if (['docx', 'doc', 'dotx', 'odt', 'rtf', 'pptx', 'ppt', 'ppsx', 'odp', 'xlsx', 'xls', 'csv', 'tsv', 'ods'].includes(ext)) {
+    return 'document';
   }
   if (['mp4', 'webm', 'ogg', 'mkv', 'mov'].includes(ext)) {
     return 'video';
@@ -271,7 +277,7 @@ export function parseFileList(files: FileList | File[]): CourseData {
   const collectLessons = (f: CourseFolder) => {
     f.files.forEach(file => {
       // Only include playable/viewable files in general course list
-      if (['video', 'audio', 'pdf', 'markdown', 'text', 'code', 'html', 'subtitle', 'url'].includes(file.type)) {
+      if (['video', 'audio', 'pdf', 'markdown', 'text', 'code', 'html', 'subtitle', 'url', 'archive', 'document'].includes(file.type)) {
         flatLessons.push(file);
       }
     });
@@ -294,7 +300,7 @@ export function buildCourseDataFromFolder(rootFolder: CourseFolder): CourseData 
   const flatLessons: CourseFile[] = [];
   const collectLessons = (f: CourseFolder) => {
     f.files.forEach(file => {
-      if (['video', 'audio', 'pdf', 'markdown', 'text', 'code', 'html', 'subtitle', 'url'].includes(file.type)) {
+      if (['video', 'audio', 'pdf', 'markdown', 'text', 'code', 'html', 'subtitle', 'url', 'archive', 'document'].includes(file.type)) {
         flatLessons.push(file);
       }
     });
