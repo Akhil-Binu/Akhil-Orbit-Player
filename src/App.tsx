@@ -28,6 +28,7 @@ export default function App() {
   
   // Layout states
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isNotesOpen, setIsNotesOpen] = useState(true);
   const [rightPanelTab, setRightPanelTab] = useState<'notes' | 'bookmarks'>('notes');
   const [isLoading, setIsLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -1108,6 +1109,29 @@ export default function App() {
                 Next
                 <ChevronRight size={14} />
               </button>
+
+              <button
+                onClick={() => setIsNotesOpen(!isNotesOpen)}
+                title={isNotesOpen ? "Close Notes Panel" : "Open Notes Panel"}
+                style={{
+                  background: isNotesOpen ? 'var(--bg-active)' : 'var(--bg-panel)',
+                  border: isNotesOpen ? '1px solid var(--border-highlight)' : '1px solid var(--border-color)',
+                  color: isNotesOpen ? 'var(--color-primary)' : 'var(--text-primary)',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all var(--transition-fast)'
+                }}
+              >
+                <FileText size={14} />
+                <span>{isNotesOpen ? 'Hide Notes' : 'Notes'}</span>
+                {isNotesOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+              </button>
             </div>
           )}
         </div>
@@ -1119,7 +1143,7 @@ export default function App() {
       </div>
 
       {/* Right Interaction Panel (Notes & Bookmarks) */}
-      {currentLesson && (
+      {currentLesson && isNotesOpen && (
         <div className="glass-panel" style={{
           width: '280px',
           height: '100%',
@@ -1132,39 +1156,16 @@ export default function App() {
           flexDirection: 'column',
           flexShrink: 0
         }}>
-          {/* Panel Selector tabs */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-            <button
-              onClick={() => setRightPanelTab('notes')}
-              style={{
-                flex: 1,
-                background: rightPanelTab === 'notes' ? 'var(--bg-active)' : 'transparent',
-                border: rightPanelTab === 'notes' ? '1px solid var(--border-highlight)' : '1px solid transparent',
-                color: rightPanelTab === 'notes' ? 'var(--color-primary)' : 'var(--text-secondary)',
-                borderRadius: '8px',
-                padding: '8px',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                transition: 'all var(--transition-fast)'
-              }}
-            >
-              <FileText size={14} />
-              Notes
-            </button>
-            
-            {currentLesson.type === 'video' && (
+          {/* Panel Selector tabs & close button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
               <button
-                onClick={() => setRightPanelTab('bookmarks')}
+                onClick={() => setRightPanelTab('notes')}
                 style={{
                   flex: 1,
-                  background: rightPanelTab === 'bookmarks' ? 'var(--bg-active)' : 'transparent',
-                  border: rightPanelTab === 'bookmarks' ? '1px solid var(--border-highlight)' : '1px solid transparent',
-                  color: rightPanelTab === 'bookmarks' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                  background: rightPanelTab === 'notes' ? 'var(--bg-active)' : 'transparent',
+                  border: rightPanelTab === 'notes' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                  color: rightPanelTab === 'notes' ? 'var(--color-primary)' : 'var(--text-secondary)',
                   borderRadius: '8px',
                   padding: '8px',
                   fontSize: '0.85rem',
@@ -1177,10 +1178,56 @@ export default function App() {
                   transition: 'all var(--transition-fast)'
                 }}
               >
-                <Bookmark size={14} />
-                Bookmarks
+                <FileText size={14} />
+                Notes
               </button>
-            )}
+              
+              {currentLesson.type === 'video' && (
+                <button
+                  onClick={() => setRightPanelTab('bookmarks')}
+                  style={{
+                    flex: 1,
+                    background: rightPanelTab === 'bookmarks' ? 'var(--bg-active)' : 'transparent',
+                    border: rightPanelTab === 'bookmarks' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+                    color: rightPanelTab === 'bookmarks' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  <Bookmark size={14} />
+                  Bookmarks
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setIsNotesOpen(false)}
+              title="Close Notes Panel"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: '4px',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'color var(--transition-fast)'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
 
           {/* Panel active slot */}
