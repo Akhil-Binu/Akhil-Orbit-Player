@@ -144,11 +144,11 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      gap: '16px'
+      gap: '10px'
     }}>
       {/* Top Header Controls */}
       <div style={{
-        padding: '12px 20px',
+        padding: '8px 16px',
         background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',

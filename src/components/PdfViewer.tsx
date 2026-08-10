@@ -242,11 +242,11 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      gap: '16px'
+      gap: '10px'
     }}>
       {/* Top Header Controls Bar */}
       <div style={{
-        padding: '12px 20px',
+        padding: '8px 16px',
         background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
@@ -518,8 +518,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         <div style={{
           flex: 1,
           display: 'grid',
-          gridTemplateColumns: numPages > 1 ? '180px 1fr' : '1fr',
-          gap: '16px',
+          gridTemplateColumns: numPages > 1 ? '150px 1fr' : '1fr',
+          gap: '10px',
           minHeight: '0'
         }}>
           {/* Left Thumbnail Strip (If Multi-page) */}
@@ -604,7 +604,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             <div style={{
               flex: 1,
               overflow: 'auto',
-              padding: '32px 20px',
+              padding: '16px 10px',
               display: 'flex',
               justifyContent: 'center',
               alignItems: viewMode === 'single' ? 'center' : 'flex-start',

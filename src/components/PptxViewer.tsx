@@ -498,11 +498,11 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      gap: '16px'
+      gap: '10px'
     }}>
       {/* Top Header Controls Bar */}
       <div style={{
-        padding: '12px 20px',
+        padding: '8px 16px',
         background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
@@ -719,8 +719,8 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({
         <div style={{
           flex: 1,
           display: 'grid',
-          gridTemplateColumns: '220px 1fr',
-          gap: '16px',
+          gridTemplateColumns: '180px 1fr',
+          gap: '10px',
           minHeight: '0'
         }}>
           {/* Left Thumbnail Strip */}
@@ -814,7 +814,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '24px',
+              padding: '12px',
               overflow: 'auto'
             }}>
               {currentSlide && (
@@ -822,7 +822,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({
                   /* 16:9 High-Fidelity Slide Canvas */
                   <div style={{
                     width: '100%',
-                    maxWidth: '1150px',
+                    maxWidth: '1350px',
                     aspectRatio: '16/9',
                     background: 'linear-gradient(135deg, #181824 0%, #0f0f18 100%)',
                     border: '1px solid rgba(255,255,255,0.12)',

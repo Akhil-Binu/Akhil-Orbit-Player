@@ -183,11 +183,11 @@ export const DocxViewer: React.FC<DocxViewerProps> = ({
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      gap: '16px'
+      gap: '10px'
     }}>
       {/* Top Header Controls */}
       <div style={{
-        padding: '12px 20px',
+        padding: '8px 16px',
         background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
@@ -381,7 +381,7 @@ export const DocxViewer: React.FC<DocxViewerProps> = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '24px',
+        padding: '16px 12px',
         position: 'relative'
       }}>
         {loading ? (
@@ -439,9 +439,9 @@ export const DocxViewer: React.FC<DocxViewerProps> = ({
               transformOrigin: 'top center',
               transition: 'transform 0.15s ease',
               width: '100%',
-              maxWidth: '900px',
+              maxWidth: '1100px',
               background: themeMode === 'light' ? '#ffffff' : '#181820',
-              padding: '56px 64px',
+              padding: '48px 56px',
               borderRadius: '8px',
               boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
               filter: themeMode === 'dark' ? 'invert(0.9) hue-rotate(180deg)' : 'none'

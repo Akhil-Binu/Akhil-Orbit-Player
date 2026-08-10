@@ -539,11 +539,11 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      gap: '16px'
+      gap: '10px'
     }}>
-      {/* Top Header Card */}
+      {/* Top Header Controls */}
       <div style={{
-        padding: '12px 18px',
+        padding: '8px 16px',
         background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
@@ -699,8 +699,8 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
         <div style={{
           flex: 1,
           display: 'grid',
-          gridTemplateColumns: '280px 1fr',
-          gap: '16px',
+          gridTemplateColumns: '230px 1fr',
+          gap: '10px',
           minHeight: '0'
         }}>
           {/* Left Column: Explorer Tree / List */}

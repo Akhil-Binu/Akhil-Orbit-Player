@@ -947,13 +947,13 @@ export default function App() {
       {/* Sidebar Panel */}
       {isSidebarOpen && (
         <div className="glass-panel" style={{
-          width: '320px',
+          width: '280px',
           height: '100%',
           borderRadius: 0,
           borderTop: 'none',
           borderBottom: 'none',
           borderLeft: 'none',
-          padding: '20px',
+          padding: '16px',
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0
@@ -996,7 +996,7 @@ export default function App() {
         flexDirection: 'column',
         height: '100%',
         position: 'relative',
-        padding: '24px',
+        padding: '12px',
         backgroundColor: 'rgba(0,0,0,0.1)'
       }}>
         {/* Top bar controls */}
@@ -1004,7 +1004,7 @@ export default function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '16px',
+          marginBottom: '10px',
           zIndex: 4
         }}>
           {/* Collapse sidebar button */}
@@ -1121,13 +1121,13 @@ export default function App() {
       {/* Right Interaction Panel (Notes & Bookmarks) */}
       {currentLesson && (
         <div className="glass-panel" style={{
-          width: '320px',
+          width: '280px',
           height: '100%',
           borderRadius: 0,
           borderTop: 'none',
           borderBottom: 'none',
           borderRight: 'none',
-          padding: '20px',
+          padding: '16px',
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0
