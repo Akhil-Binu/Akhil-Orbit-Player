@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FolderOpen, UploadCloud, GraduationCap, ChevronLeft, 
   ChevronRight, CheckCircle2, Bookmark, FileText, Sparkles, BookOpen,
-  Music, HelpCircle, Link2, ExternalLink
+  Music, HelpCircle, Link2, ExternalLink, X
 } from 'lucide-react';
 import { parseDirectory, parseFileList, buildCourseDataFromFolder, getFileObject } from './utils/fileSystem';
 import type { CourseData, CourseFile } from './utils/fileSystem';
@@ -1212,21 +1212,31 @@ export default function App() {
               onClick={() => setIsNotesOpen(false)}
               title="Close Notes Panel"
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
-                padding: '4px',
-                borderRadius: '6px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'color var(--transition-fast)'
+                flexShrink: 0,
+                transition: 'all var(--transition-fast)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.color = '#ef4444';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.borderColor = 'var(--border-color)';
+              }}
             >
-              <ChevronRight size={18} />
+              <X size={16} />
             </button>
           </div>
 
