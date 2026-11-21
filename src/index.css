@@ -1,0 +1,243 @@
+:root {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* Premium Dark Theme variables */
+  --bg-dark: #09090b;
+  --bg-panel: rgba(20, 20, 25, 0.6);
+  --bg-card: rgba(30, 30, 40, 0.4);
+  --bg-active: rgba(99, 102, 241, 0.12);
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-highlight: rgba(99, 102, 241, 0.3);
+  --border-focus: rgba(99, 102, 241, 0.6);
+  
+  --color-primary: #6366f1;
+  --color-secondary: #3b82f6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  
+  --gradient-accent: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+  --gradient-glow: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+  --gradient-shine: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-neon: 0 0 20px rgba(99, 102, 241, 0.25);
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  
+  color-scheme: dark;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism panel base */
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.glass-panel-glow {
+  border-color: var(--border-highlight);
+  box-shadow: var(--shadow-neon);
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* Input elements */
+input, textarea, select {
+  font-family: inherit;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--border-focus);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+/* Custom interactive ranges (video progress / volume) */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  height: 4px;
+  border-radius: 2px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary);
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.3);
+}
+
+/* Markdown parsing output layout styling */
+.markdown-body {
+  line-height: 1.6;
+  color: #e4e4e7;
+  font-size: 15px;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+
+.markdown-body h1 { font-size: 1.8rem; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+.markdown-body h2 { font-size: 1.4rem; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
+.markdown-body h3 { font-size: 1.15rem; }
+
+.markdown-body p {
+  margin-bottom: 16px;
+}
+
+.markdown-body code {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #f43f5e;
+}
+
+.markdown-body pre {
+  background: #111116;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 16px;
+  overflow-x: auto;
+  margin-bottom: 18px;
+}
+
+.markdown-body pre code {
+  color: #38bdf8;
+  background: none;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.markdown-body ul, .markdown-body ol {
+  margin-bottom: 18px;
+  padding-left: 24px;
+}
+
+.markdown-body li {
+  margin-bottom: 6px;
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid var(--color-primary);
+  background: rgba(99, 102, 241, 0.04);
+  padding: 12px 18px;
+  border-radius: 0 8px 8px 0;
+  margin: 18px 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.markdown-body hr {
+  border: 0;
+  height: 1px;
+  background: var(--border-color);
+  margin: 24px 0;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseBorder {
+  0% { border-color: var(--border-color); }
+  50% { border-color: var(--border-highlight); box-shadow: 0 0 10px rgba(99, 102, 241, 0.1); }
+  100% { border-color: var(--border-color); }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-normal) forwards;
+}
+
+.animate-pulse-border {
+  animation: pulseBorder 2.5s infinite;
+}
