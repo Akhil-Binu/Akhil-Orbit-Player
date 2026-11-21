@@ -79,6 +79,11 @@ Welcome to Akhil Orbit Player!
 You are watching a video loaded directly from your device.`
 );
 
+createFile(
+  path.join(targetDir, '01_Welcome & Getting Started', '1.3 - Orbit Overview.es.mp3'),
+  'DUMMY SPANISH AUDIO TRACK'
+);
+
 // 3. Create Core Mechanics Files
 createFile(
   path.join(targetDir, '02_Core Mechanics', '2.1 - File Access vs Directory Inputs.md'),

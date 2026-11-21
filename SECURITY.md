@@ -1,36 +1,36 @@
 # Security Policy
 
-## Supported Versions
+## Core Privacy Architecture
 
-We provide security updates and patches for the current release branch.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+Orbit Player is engineered from the ground up to operate with zero server-side transmission:
+* **Zero Remote Telemetry**: All course files, audio tracks, subtitles, notes, and progress metrics stay completely on the user's local device.
+* **In-Browser Processing**: Media container parsing, document rendering, and archive extraction execute strictly within the browser sandbox.
+* **Storage Isolation**: Local notes and course bookmark data reside exclusively in browser-scoped IndexedDB and `localStorage`.
 
 ---
 
-## Reporting a Vulnerability
+## Supported Versions
 
-The project team takes security and user privacy seriously.
+Security updates and critical defect patches are actively applied to the following release line:
 
-If you believe you have found a security vulnerability in **Orbit Media Player**, **please do not open a public issue.**
+| Version | Supported |
+| :--- | :--- |
+| `1.1.x` | Yes |
+| `< 1.1.0` | No (Please update to latest release) |
 
-Instead, please report the vulnerability privately:
+---
 
-1. **GitHub Security Advisory**: Use the **Security** tab on GitHub and click **"Report a vulnerability"** to submit your findings privately.
-2. **Direct Contact**: Reach out to the maintainer via their GitHub profile: [https://github.com/Akhil-Binu](https://github.com/Akhil-Binu).
+## Reporting a Security Vulnerability
 
-### What to Include in Your Report
-- A detailed description of the vulnerability.
-- Steps to reproduce the issue (proof-of-concept scripts or scenarios).
-- Potential impact and severity assessment.
-- Suggestions on how to mitigate or remediate the vulnerability if known.
+If you discover a security concern, cross-site scripting (XSS) vulnerability in document parsing, or memory isolation flaw in Orbit Player:
+
+1. **Do not create a public issue**.
+2. Email full diagnostic details, reproduction steps, and proof-of-concept material directly to the maintainer:
+   * **Contact**: `AkhilBinuRoom@gmail.com`
+   * **Subject**: `[SECURITY VULNERABILITY] Orbit Player - <Brief Description>`
+3. Include information on your operating system, browser engine and version, and sample media/document format involved.
 
 ### Response Timeline
-- **Acknowledgement**: Within 48 hours of receipt.
-- **Initial Assessment**: Within 5 business days.
-- **Fix & Public Advisory**: Once a patched version is tested and deployed.
-
-Thank you for helping keep this open-source tool secure for all users!
+* **Initial Acknowledgment**: Within 48 hours of receipt.
+* **Triage & Reproduction**: Within 5 business days.
+* **Patch Release**: Released via GitHub as a hotfix version once resolved and verified.

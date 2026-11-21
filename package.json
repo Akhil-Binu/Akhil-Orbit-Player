@@ -1,13 +1,44 @@
 {
   "name": "teachable",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.2.0",
+  "description": "Ultra-fast, 100% private offline-first course player and media workstation",
+  "author": "Akhil Binu <AkhilBinuRoom@gmail.com>",
+  "contributors": [
+    "Akhil Binu <AkhilBinuRoom@gmail.com>"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT",
+  "homepage": "https://akhil-orbit-player.vercel.app/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akhil-Binu/teachable.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Akhil-Binu/teachable/issues"
+  },
+  "keywords": [
+    "orbit-player",
+    "course-player",
+    "video-player",
+    "multi-track-audio",
+    "vlc-parity",
+    "matroska",
+    "mp4-demuxer",
+    "pdfjs",
+    "react19",
+    "typescript"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:exe": "node cli/build_exe.cjs",
+    "pack:orbit": "node generate_mock_orbit_course.cjs"
   },
   "dependencies": {
     "@types/jszip": "^3.4.0",

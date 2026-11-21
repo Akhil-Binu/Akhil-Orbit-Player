@@ -1,0 +1,5 @@
+{
+  "main": "cli/bundle.js",
+  "output": "cli/sea-prep.blob",
+  "disableExperimentalSEAWarning": true
+}
