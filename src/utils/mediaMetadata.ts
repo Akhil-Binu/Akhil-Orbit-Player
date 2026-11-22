@@ -1117,3 +1117,16 @@ export async function extractMp4AudioTrack(file: File, trackId: number): Promise
     return null;
   }
 }
+
+/**
+ * Convert SubRip (.srt) subtitle text to standard WebVTT (.vtt) format for HTML5 video
+ */
+export function srtToVtt(srtText: string): string {
+  const normalized = srtText.replace(/\r\n|\r/g, '\n').trim();
+  const vttCues = normalized.replace(/(\d{1,2}:\d{2}:\d{2}),(\d{3})/g, (_match, time, ms) => {
+    const parts = time.split(':');
+    const hh = parts[0].padStart(2, '0');
+    return `${hh}:${parts[1]}:${parts[2]}.${ms}`;
+  });
+  return `WEBVTT\n\n${vttCues}`;
+}

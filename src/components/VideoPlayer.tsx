@@ -1,15 +1,16 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Play, Pause, Volume2, VolumeX, Maximize, Minimize, 
-  Settings, Bookmark, RotateCcw, ChevronRight,
+  Settings, Bookmark, RotateCcw, ChevronRight, ChevronDown,
   Headphones, Check, Upload, CheckCircle2 
 } from 'lucide-react';
-import { extractMp4AudioTrack, detectEmbeddedAudioTracks } from '../utils/mediaMetadata';
+import { extractMp4AudioTrack, detectEmbeddedAudioTracks, srtToVtt } from '../utils/mediaMetadata';
 
-interface SubtitleTrackUrl {
+export interface SubtitleTrackUrl {
   label: string;
   srclang: string;
   url: string;
+  isCustom?: boolean;
 }
 
 export interface AudioTrackOption {
@@ -92,6 +93,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showControls, setShowControls] = useState(true);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [isSubtitlesOn, setIsSubtitlesOn] = useState(false);
+  const [selectedSubtitleIndex, setSelectedSubtitleIndex] = useState(0);
+  const [customSubtitles, setCustomSubtitles] = useState<SubtitleTrackUrl[]>([]);
+  const [showSubtitleMenu, setShowSubtitleMenu] = useState(false);
+  const subtitleFileInputRef = useRef<HTMLInputElement>(null);
   const [resumeNotice, setResumeNotice] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
   const [countdown, setCountdown] = useState(8);
@@ -107,6 +112,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [audioSyncOffset, setAudioSyncOffset] = useState(0);
   const [isExtractingAudio, setIsExtractingAudio] = useState(false);
   const [extractedBlobUrls, setExtractedBlobUrls] = useState<Record<string, string>>({});
+
+  // Assemble complete subtitles list (prop tracks + custom loaded tracks)
+  const allSubtitles: SubtitleTrackUrl[] = useMemo(() => {
+    return [...(subtitles || []), ...customSubtitles];
+  }, [subtitles, customSubtitles]);
 
   const resumeKey = `resume_${courseId}_${lessonPath}`;
 
@@ -190,6 +200,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setResumeNotice('');
     setShowSpeedMenu(false);
     setShowAudioMenu(false);
+    setShowSubtitleMenu(false);
+    customSubtitles.forEach(track => {
+      if (track.isCustom && track.url) URL.revokeObjectURL(track.url);
+    });
+    setCustomSubtitles([]);
+    setSelectedSubtitleIndex(0);
     setSelectedAudioTrackId('default');
     setAudioSyncOffset(0);
     setInternalAudioTracks([]);
@@ -225,6 +241,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [customAudioTracks]);
 
+  // Clean up custom subtitle blob URLs
+  useEffect(() => {
+    return () => {
+      customSubtitles.forEach(track => {
+        if (track.isCustom && track.url) URL.revokeObjectURL(track.url);
+      });
+    };
+  }, [customSubtitles]);
+
   // Close menus on outside click
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -232,6 +257,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (!target.closest('.player-menu-popover') && !target.closest('.player-menu-trigger')) {
         setShowSpeedMenu(false);
         setShowAudioMenu(false);
+        setShowSubtitleMenu(false);
       }
     };
     window.addEventListener('click', handleOutsideClick);
@@ -534,24 +560,107 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  const toggleSubtitles = () => {
+  const applySubtitleMode = useCallback((on: boolean, targetIdx: number) => {
     if (!videoRef.current) return;
     const tracks = videoRef.current.textTracks;
+    for (let i = 0; i < tracks.length; i++) {
+      if (on && i === targetIdx) {
+        tracks[i].mode = 'showing';
+      } else {
+        tracks[i].mode = 'disabled';
+      }
+    }
+  }, []);
+
+  const toggleSubtitles = () => {
+    setShowSubtitleMenu(false);
+    setShowAudioMenu(false);
+    setShowSpeedMenu(false);
+
+    if (allSubtitles.length === 0) {
+      if (subtitleFileInputRef.current) {
+        subtitleFileInputRef.current.click();
+      }
+      setResumeNotice('No subtitles available — select a .vtt or .srt file');
+      setTimeout(() => setResumeNotice(''), 3500);
+      return;
+    }
+
     const newOn = !isSubtitlesOn;
     setIsSubtitlesOn(newOn);
-    for (let i = 0; i < tracks.length; i++) {
-      tracks[i].mode = newOn ? 'showing' : 'disabled';
+    applySubtitleMode(newOn, selectedSubtitleIndex);
+
+    if (newOn) {
+      const activeTrack = allSubtitles[selectedSubtitleIndex] || allSubtitles[0];
+      setResumeNotice(`Captions On (${activeTrack?.label || 'Active'})`);
+    } else {
+      setResumeNotice('Captions Off');
     }
+    setTimeout(() => setResumeNotice(''), 2500);
+  };
+
+  const handleSelectSubtitleTrack = (index: number) => {
+    if (index === -1) {
+      setIsSubtitlesOn(false);
+      applySubtitleMode(false, selectedSubtitleIndex);
+      setResumeNotice('Captions Off');
+    } else {
+      setSelectedSubtitleIndex(index);
+      setIsSubtitlesOn(true);
+      applySubtitleMode(true, index);
+      const activeTrack = allSubtitles[index];
+      setResumeNotice(`Captions: ${activeTrack?.label || 'Active'}`);
+    }
+    setTimeout(() => setResumeNotice(''), 2500);
+    setShowSubtitleMenu(false);
+  };
+
+  const handleCustomSubtitleLoad = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      let trackUrl: string;
+      if (file.name.toLowerCase().endsWith('.srt')) {
+        const srtText = await file.text();
+        const vttText = srtToVtt(srtText);
+        const vttBlob = new Blob([vttText], { type: 'text/vtt' });
+        trackUrl = URL.createObjectURL(vttBlob);
+      } else {
+        trackUrl = URL.createObjectURL(file);
+      }
+
+      const newTrack: SubtitleTrackUrl = {
+        label: file.name.replace(/\.[^/.]+$/, ''),
+        srclang: 'custom',
+        url: trackUrl,
+        isCustom: true
+      };
+
+      const newIdx = allSubtitles.length;
+      setCustomSubtitles(prev => [...prev, newTrack]);
+      setSelectedSubtitleIndex(newIdx);
+      setIsSubtitlesOn(true);
+      setTimeout(() => applySubtitleMode(true, newIdx), 100);
+
+      setResumeNotice(`Loaded Subtitle: ${newTrack.label}`);
+      setTimeout(() => setResumeNotice(''), 3000);
+    } catch (err) {
+      console.error('Failed to load subtitle file:', err);
+      setResumeNotice('Error loading subtitle file');
+      setTimeout(() => setResumeNotice(''), 3000);
+    }
+
+    if (subtitleFileInputRef.current) {
+      subtitleFileInputRef.current.value = '';
+    }
+    setShowSubtitleMenu(false);
   };
 
   // Sync subtitles track visibility
   useEffect(() => {
-    if (!videoRef.current) return;
-    const tracks = videoRef.current.textTracks;
-    for (let i = 0; i < tracks.length; i++) {
-      tracks[i].mode = isSubtitlesOn ? 'showing' : 'disabled';
-    }
-  }, [subtitles, isSubtitlesOn]);
+    applySubtitleMode(isSubtitlesOn, selectedSubtitleIndex);
+  }, [allSubtitles, isSubtitlesOn, selectedSubtitleIndex, applySubtitleMode]);
 
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return;
@@ -559,10 +668,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setDuration(videoDuration);
 
     // Apply subtitle track mode
-    const tracks = videoRef.current.textTracks;
-    for (let i = 0; i < tracks.length; i++) {
-      tracks[i].mode = isSubtitlesOn ? 'showing' : 'disabled';
-    }
+    applySubtitleMode(isSubtitlesOn, selectedSubtitleIndex);
 
     // Inspect native audioTracks if available
     const videoEl = videoRef.current as any;
@@ -809,14 +915,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           cursor: 'pointer'
         }}
       >
-        {(subtitles || []).map((track, idx) => (
+        {(allSubtitles || []).map((track, idx) => (
           <track
-            key={idx}
+            key={`${track.url}_${idx}`}
             kind="subtitles"
             src={track.url}
-            srcLang={track.srclang}
+            srcLang={track.srclang || 'en'}
             label={track.label}
-            default={idx === 0}
+            default={isSubtitlesOn && idx === selectedSubtitleIndex}
+            onLoad={() => applySubtitleMode(isSubtitlesOn, selectedSubtitleIndex)}
           />
         ))}
       </video>
@@ -836,6 +943,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"
         style={{ display: 'none' }}
         onChange={handleCustomAudioUpload}
+      />
+
+      {/* Hidden file input for custom subtitle track loading */}
+      <input
+        ref={subtitleFileInputRef}
+        type="file"
+        accept=".vtt,.srt"
+        style={{ display: 'none' }}
+        onChange={handleCustomSubtitleLoad}
       />
 
       {/* Confetti Canvas */}
@@ -1222,37 +1338,252 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 />
               </div>
 
-              {/* CC Captions Button */}
-              {subtitles && subtitles.length > 0 && (
+              {/* CC Captions Button with Options Menu */}
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <button
+                  className="player-menu-trigger"
                   onClick={toggleSubtitles}
-                  title="Toggle Captions (C)"
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowAudioMenu(false);
+                    setShowSpeedMenu(false);
+                    setShowSubtitleMenu(prev => !prev);
+                  }}
+                  title={
+                    isSubtitlesOn
+                      ? `Turn off captions (C) — Active: ${allSubtitles[selectedSubtitleIndex]?.label || 'On'}`
+                      : allSubtitles.length > 0
+                        ? `Turn on captions (C) — ${allSubtitles.length} track(s) available`
+                        : 'Closed Captions (C) — Click to load .vtt or .srt subtitle file'
+                  }
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: isSubtitlesOn ? 'var(--color-primary)' : 'rgba(255,255,255,0.8)',
+                    color: isSubtitlesOn ? 'var(--color-primary)' : 'rgba(255,255,255,0.85)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '4px 8px',
+                    gap: '4px',
+                    padding: '4px 6px',
                     borderRadius: '4px',
-                    transition: 'background 0.2s'
+                    transition: 'all 0.2s',
+                    backgroundColor: showSubtitleMenu ? 'rgba(255,255,255,0.12)' : 'transparent'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  onMouseEnter={(e) => {
+                    if (!showSubtitleMenu) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!showSubtitleMenu) e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   <div style={{
-                    border: isSubtitlesOn ? '1.5px solid var(--color-primary)' : '1.5px solid rgba(255,255,255,0.8)',
+                    border: isSubtitlesOn ? '1.5px solid var(--color-primary)' : '1.5px solid rgba(255,255,255,0.7)',
+                    backgroundColor: isSubtitlesOn ? 'var(--color-primary)' : 'transparent',
+                    color: isSubtitlesOn ? '#ffffff' : 'rgba(255,255,255,0.85)',
                     borderRadius: '3px',
-                    padding: '0px 3px',
+                    padding: '1px 4px',
                     fontSize: '0.65rem',
                     fontWeight: 'bold',
-                    lineHeight: '1.2'
+                    lineHeight: '1.2',
+                    letterSpacing: '0.5px',
+                    boxShadow: isSubtitlesOn ? '0 0 8px rgba(99, 102, 241, 0.4)' : 'none',
+                    transition: 'all 0.2s'
                   }}>
                     CC
                   </div>
                 </button>
-              )}
+
+                {/* Subtitle menu chevron dropdown trigger */}
+                <button
+                  className="player-menu-trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAudioMenu(false);
+                    setShowSpeedMenu(false);
+                    setShowSubtitleMenu(prev => !prev);
+                  }}
+                  title="Subtitle & Caption Options"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: showSubtitleMenu ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '4px 2px',
+                    marginLeft: '-3px',
+                    borderRadius: '3px',
+                    transition: 'color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'white'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = showSubtitleMenu ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)'}
+                >
+                  <ChevronDown size={12} />
+                </button>
+
+                {/* Subtitle Popover Menu */}
+                {showSubtitleMenu && (
+                  <div
+                    className="player-menu-popover"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute',
+                      bottom: '36px',
+                      left: 0,
+                      backgroundColor: 'rgba(20, 20, 25, 0.96)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: '8px',
+                      padding: '8px 0',
+                      minWidth: '220px',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                      backdropFilter: 'blur(16px)',
+                      zIndex: 100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}
+                  >
+                    {/* Menu Header */}
+                    <div style={{
+                      padding: '4px 14px 8px',
+                      borderBottom: '1px solid rgba(255,255,255,0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+                        Subtitles / Captions
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)' }}>
+                        {allSubtitles.length} available
+                      </span>
+                    </div>
+
+                    {/* Track Options */}
+                    <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '4px 0' }}>
+                      {/* Off Option */}
+                      <button
+                        onClick={() => handleSelectSubtitleTrack(-1)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 14px',
+                          background: !isSubtitlesOn ? 'rgba(99, 102, 241, 0.15)' : 'none',
+                          border: 'none',
+                          color: !isSubtitlesOn ? 'var(--color-primary)' : 'rgba(255,255,255,0.8)',
+                          fontSize: '0.78rem',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          transition: 'background 0.15s'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (isSubtitlesOn) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (isSubtitlesOn) e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <span style={{ fontWeight: !isSubtitlesOn ? 600 : 400 }}>Off</span>
+                        {!isSubtitlesOn && <Check size={14} color="var(--color-primary)" />}
+                      </button>
+
+                      {/* Subtitle Tracks */}
+                      {allSubtitles.map((track, idx) => {
+                        const isSelected = isSubtitlesOn && selectedSubtitleIndex === idx;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectSubtitleTrack(idx)}
+                            style={{
+                              width: '100%',
+                              padding: '7px 14px',
+                              background: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'none',
+                              border: 'none',
+                              color: isSelected ? 'var(--color-primary)' : 'rgba(255,255,255,0.85)',
+                              fontSize: '0.78rem',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              transition: 'background 0.15s'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            <span style={{
+                              fontWeight: isSelected ? 600 : 400,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              maxWidth: '150px'
+                            }}>
+                              {track.label}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {track.srclang && track.srclang !== 'custom' && (
+                                <span style={{
+                                  fontSize: '0.62rem',
+                                  padding: '1px 4px',
+                                  borderRadius: '3px',
+                                  backgroundColor: 'rgba(255,255,255,0.08)',
+                                  color: 'rgba(255,255,255,0.6)'
+                                }}>
+                                  {track.srclang.toUpperCase()}
+                                </span>
+                              )}
+                              {isSelected && <Check size={14} color="var(--color-primary)" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Load Custom Subtitle File */}
+                    <div style={{
+                      borderTop: '1px solid rgba(255,255,255,0.08)',
+                      padding: '4px 6px 2px'
+                    }}>
+                      <button
+                        onClick={() => subtitleFileInputRef.current?.click()}
+                        style={{
+                          width: '100%',
+                          padding: '6px 10px',
+                          background: 'none',
+                          border: 'none',
+                          color: 'rgba(255,255,255,0.7)',
+                          fontSize: '0.74rem',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          borderRadius: '4px',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                        }}
+                      >
+                        <Upload size={12} />
+                        <span>Load Subtitle File (.vtt, .srt)...</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Quick Bookmark Trigger */}
               <button

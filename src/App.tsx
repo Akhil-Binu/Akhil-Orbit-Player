@@ -14,7 +14,7 @@ import { BookmarksPanel } from './components/BookmarksPanel';
 import { ArchiveViewer } from './components/ArchiveViewer';
 import { DocumentViewer } from './components/DocumentViewer';
 import type { VideoBookmark } from './components/BookmarksPanel';
-import { detectEmbeddedAudioTracks } from './utils/mediaMetadata';
+import { detectEmbeddedAudioTracks, srtToVtt } from './utils/mediaMetadata';
 import { 
   exportEncryptedOrbitCourse, 
   importEncryptedOrbitCourse, 
@@ -177,7 +177,15 @@ export default function App() {
           const resolvedTracks = await Promise.all(
             lesson.subtitles.map(async (track) => {
               const trackFile = await getFileObject(track as any);
-              const trackUrl = URL.createObjectURL(trackFile);
+              let trackUrl: string;
+              if (trackFile.name.toLowerCase().endsWith('.srt')) {
+                const srtText = await trackFile.text();
+                const vttText = srtToVtt(srtText);
+                const vttBlob = new Blob([vttText], { type: 'text/vtt' });
+                trackUrl = URL.createObjectURL(vttBlob);
+              } else {
+                trackUrl = URL.createObjectURL(trackFile);
+              }
               return {
                 label: track.label,
                 srclang: track.srclang,
@@ -1116,7 +1124,7 @@ export default function App() {
             </p>
             <div style={{ marginTop: '12px' }}>
               <a 
-                href="https://akhil-orbit-player.vercel.app/" 
+                href="https://teachable-azure.vercel.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 style={{
@@ -1143,7 +1151,7 @@ export default function App() {
                 }}
               >
                 <ExternalLink size={12} />
-                akhil-orbit-player.vercel.app
+                teachable-azure.vercel.app
               </a>
             </div>
           </div>

@@ -46,7 +46,7 @@ export interface CourseData {
 export function getFileType(fileName: string): FileType {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
   
-  if (ext === 'vtt') {
+  if (ext === 'vtt' || ext === 'srt') {
     return 'subtitle';
   }
   if (ext === 'url') {
