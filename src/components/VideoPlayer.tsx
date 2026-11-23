@@ -28,6 +28,13 @@ export interface AudioTrackOption {
   codec?: string;
 }
 
+export interface VideoBookmark {
+  id: string;
+  timestamp: number;
+  note: string;
+  createdAt: number;
+}
+
 interface VideoPlayerProps {
   videoSrc: string;
   fileObj?: File | null;
@@ -39,6 +46,7 @@ interface VideoPlayerProps {
   onVideoEnded: () => void;
   onTimeUpdate: (time: number) => void;
   onAddBookmark: (timestamp: number, note: string) => void;
+  bookmarks?: VideoBookmark[];
   hasNextLesson?: boolean;
   onVideoCompleted?: () => void;
   isLessonCompleted?: boolean;
@@ -72,6 +80,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onVideoEnded,
   onTimeUpdate,
   onAddBookmark,
+  bookmarks,
   hasNextLesson = false,
   onVideoCompleted,
   isLessonCompleted = false,
@@ -83,6 +92,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // YouTube-Style Hover Preview & Scrubber Refs & State
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const [isHoveringTimeline, setIsHoveringTimeline] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [isPreciseSeeking, setIsPreciseSeeking] = useState(false);
+  const [hoverTime, setHoverTime] = useState(0);
+  const [hoverX, setHoverX] = useState(0);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const isPreviewSeekingRef = useRef(false);
+  const pendingPreviewTimeRef = useRef<number | null>(null);
+
+  const wasPlayingBeforeScrubRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const dragStartXRef = useRef(0);
+  const dragStartTimeRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeState, setCurrentTimeState] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -327,7 +353,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleMouseMove = () => {
       setShowControls(true);
       clearTimeout(timeout);
-      if (isPlaying) {
+      if (isPlaying && !isHoveringTimeline && !isScrubbing) {
         timeout = setTimeout(() => setShowControls(false), 2500);
       }
     };
@@ -335,7 +361,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const container = containerRef.current;
     if (container) {
       container.addEventListener('mousemove', handleMouseMove);
-      container.addEventListener('mouseleave', () => isPlaying && setShowControls(false));
+      container.addEventListener('mouseleave', () => isPlaying && !isScrubbing && setShowControls(false));
     }
 
     return () => {
@@ -344,7 +370,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
       clearTimeout(timeout);
     };
-  }, [isPlaying]);
+  }, [isPlaying, isHoveringTimeline, isScrubbing]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -377,13 +403,320 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!videoRef.current) return;
-    const newTime = parseFloat(e.target.value);
-    videoRef.current.currentTime = newTime;
-    setCurrentTimeState(newTime);
-    if (audioRef.current && activeAudioTrack.url) {
-      audioRef.current.currentTime = Math.max(0, newTime + audioSyncOffset);
+  const formatTime = (secs: number) => {
+    if (isNaN(secs) || secs < 0) return '00:00';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = Math.floor(secs % 60);
+    
+    const minutesStr = m.toString().padStart(2, '0');
+    const secondsStr = s.toString().padStart(2, '0');
+
+    if (h > 0) {
+      return `${h}:${minutesStr}:${secondsStr}`;
+    }
+    return `${minutesStr}:${secondsStr}`;
+  };
+
+  const activeBookmarks = useMemo(() => {
+    if (bookmarks && bookmarks.length > 0) return bookmarks;
+    const key = `bookmarks_${courseId}_${lessonPath}`;
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as VideoBookmark[]) : [];
+    } catch {
+      return [];
+    }
+  }, [bookmarks, courseId, lessonPath]);
+
+  const matchedBookmark = useMemo(() => {
+    if (!activeBookmarks || activeBookmarks.length === 0) return null;
+    return activeBookmarks.find(bm => Math.abs(bm.timestamp - hoverTime) <= 3);
+  }, [activeBookmarks, hoverTime]);
+
+  const requestPreviewSeek = useCallback((targetTime: number) => {
+    const videoEl = previewVideoRef.current;
+    if (!videoEl || !duration || isNaN(targetTime)) return;
+    const clampedTime = Math.max(0, Math.min(duration, targetTime));
+
+    if (isPreviewSeekingRef.current) {
+      pendingPreviewTimeRef.current = clampedTime;
+      return;
+    }
+
+    if (videoEl.readyState < 1) {
+      pendingPreviewTimeRef.current = clampedTime;
+      return;
+    }
+
+    isPreviewSeekingRef.current = true;
+    setIsPreviewLoading(true);
+
+    try {
+      if ('fastSeek' in videoEl && typeof (videoEl as any).fastSeek === 'function') {
+        (videoEl as any).fastSeek(clampedTime);
+      } else {
+        videoEl.currentTime = clampedTime;
+      }
+    } catch {
+      isPreviewSeekingRef.current = false;
+      setIsPreviewLoading(false);
+    }
+  }, [duration]);
+
+  const handlePreviewSeeked = useCallback(() => {
+    setIsPreviewLoading(false);
+    isPreviewSeekingRef.current = false;
+    if (pendingPreviewTimeRef.current !== null) {
+      const nextTime = pendingPreviewTimeRef.current;
+      pendingPreviewTimeRef.current = null;
+      requestPreviewSeek(nextTime);
+    }
+  }, [requestPreviewSeek]);
+
+  const handlePreviewLoadedMetadata = useCallback(() => {
+    if (pendingPreviewTimeRef.current !== null) {
+      const t = pendingPreviewTimeRef.current;
+      pendingPreviewTimeRef.current = null;
+      requestPreviewSeek(t);
+    }
+  }, [requestPreviewSeek]);
+
+  const handlePreviewError = useCallback(() => {
+    setIsPreviewLoading(false);
+    isPreviewSeekingRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (previewVideoRef.current && videoSrc) {
+      try {
+        previewVideoRef.current.currentTime = 0;
+      } catch {
+        // ignore
+      }
+    }
+    setIsPreviewLoading(false);
+    isPreviewSeekingRef.current = false;
+    pendingPreviewTimeRef.current = null;
+  }, [videoSrc]);
+
+  const handleTimelineMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration || !progressBarRef.current) return;
+    e.preventDefault();
+
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const fraction = Math.max(0, Math.min(1, offsetX / rect.width));
+    const newTime = fraction * duration;
+
+    wasPlayingBeforeScrubRef.current = isPlaying;
+    if (isPlaying && videoRef.current) {
+      videoRef.current.pause();
+      if (audioRef.current && activeAudioTrack.url) {
+        audioRef.current.pause();
+      }
+    }
+
+    setIsScrubbing(true);
+    dragStartYRef.current = e.clientY;
+    dragStartXRef.current = e.clientX;
+    dragStartTimeRef.current = newTime;
+
+    setHoverX(offsetX);
+    setHoverTime(newTime);
+    requestPreviewSeek(newTime);
+
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+      setCurrentTimeState(newTime);
+      if (audioRef.current && activeAudioTrack.url) {
+        audioRef.current.currentTime = Math.max(0, newTime + audioSyncOffset);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isScrubbing) return;
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!progressBarRef.current || !duration) return;
+      const rect = progressBarRef.current.getBoundingClientRect();
+
+      const deltaY = dragStartYRef.current - e.clientY;
+      const isPullUp = deltaY > 35;
+      setIsPreciseSeeking(isPullUp);
+
+      let targetTime = 0;
+      if (isPullUp) {
+        const deltaX = e.clientX - dragStartXRef.current;
+        const timeOffset = (deltaX / 100) * 5;
+        targetTime = Math.max(0, Math.min(duration, dragStartTimeRef.current + timeOffset));
+        const barX = (targetTime / duration) * rect.width;
+        setHoverX(barX);
+      } else {
+        const offsetX = e.clientX - rect.left;
+        const fraction = Math.max(0, Math.min(1, offsetX / rect.width));
+        targetTime = fraction * duration;
+        setHoverX(Math.max(0, Math.min(rect.width, offsetX)));
+      }
+
+      setHoverTime(targetTime);
+      requestPreviewSeek(targetTime);
+
+      if (videoRef.current) {
+        videoRef.current.currentTime = targetTime;
+        setCurrentTimeState(targetTime);
+        if (audioRef.current && activeAudioTrack.url) {
+          audioRef.current.currentTime = Math.max(0, targetTime + audioSyncOffset);
+        }
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      setIsScrubbing(false);
+      setIsPreciseSeeking(false);
+
+      if (wasPlayingBeforeScrubRef.current && videoRef.current) {
+        videoRef.current.play().catch(err => console.log('Playback error after scrub:', err));
+        if (audioRef.current && activeAudioTrack.url) {
+          audioRef.current.play().catch(err => console.log('Audio playback error after scrub:', err));
+        }
+        setIsPlaying(true);
+      }
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isScrubbing, duration, requestPreviewSeek, activeAudioTrack, audioSyncOffset]);
+
+  const handleTimelineMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!duration || !progressBarRef.current || isScrubbing) return;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const fraction = Math.max(0, Math.min(1, offsetX / rect.width));
+    const time = fraction * duration;
+
+    setHoverX(offsetX);
+    setHoverTime(time);
+    setIsHoveringTimeline(true);
+    requestPreviewSeek(time);
+  };
+
+  const handleTimelineMouseEnter = () => {
+    setIsHoveringTimeline(true);
+  };
+
+  const handleTimelineMouseLeave = () => {
+    if (!isScrubbing) {
+      setIsHoveringTimeline(false);
+    }
+  };
+
+  const handleTimelineTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!duration || !progressBarRef.current || e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const offsetX = touch.clientX - rect.left;
+    const fraction = Math.max(0, Math.min(1, offsetX / rect.width));
+    const newTime = fraction * duration;
+
+    wasPlayingBeforeScrubRef.current = isPlaying;
+    if (isPlaying && videoRef.current) {
+      videoRef.current.pause();
+      if (audioRef.current && activeAudioTrack.url) audioRef.current.pause();
+    }
+
+    setIsScrubbing(true);
+    setIsHoveringTimeline(true);
+    dragStartYRef.current = touch.clientY;
+    dragStartXRef.current = touch.clientX;
+    dragStartTimeRef.current = newTime;
+
+    setHoverX(offsetX);
+    setHoverTime(newTime);
+    requestPreviewSeek(newTime);
+
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+      setCurrentTimeState(newTime);
+      if (audioRef.current && activeAudioTrack.url) {
+        audioRef.current.currentTime = Math.max(0, newTime + audioSyncOffset);
+      }
+    }
+  };
+
+  const handleTimelineTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isScrubbing || !duration || !progressBarRef.current || e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const rect = progressBarRef.current.getBoundingClientRect();
+
+    const deltaY = dragStartYRef.current - touch.clientY;
+    const isPullUp = deltaY > 35;
+    setIsPreciseSeeking(isPullUp);
+
+    let targetTime = 0;
+    if (isPullUp) {
+      const deltaX = touch.clientX - dragStartXRef.current;
+      const timeOffset = (deltaX / 100) * 5;
+      targetTime = Math.max(0, Math.min(duration, dragStartTimeRef.current + timeOffset));
+      setHoverX((targetTime / duration) * rect.width);
+    } else {
+      const offsetX = touch.clientX - rect.left;
+      const fraction = Math.max(0, Math.min(1, offsetX / rect.width));
+      targetTime = fraction * duration;
+      setHoverX(Math.max(0, Math.min(rect.width, offsetX)));
+    }
+
+    setHoverTime(targetTime);
+    requestPreviewSeek(targetTime);
+
+    if (videoRef.current) {
+      videoRef.current.currentTime = targetTime;
+      setCurrentTimeState(targetTime);
+      if (audioRef.current && activeAudioTrack.url) {
+        audioRef.current.currentTime = Math.max(0, targetTime + audioSyncOffset);
+      }
+    }
+  };
+
+  const handleTimelineTouchEnd = () => {
+    setIsScrubbing(false);
+    setIsPreciseSeeking(false);
+    setIsHoveringTimeline(false);
+
+    if (wasPlayingBeforeScrubRef.current && videoRef.current) {
+      videoRef.current.play().catch(err => console.log('Playback error:', err));
+      if (audioRef.current && activeAudioTrack.url) {
+        audioRef.current.play().catch(err => console.log('Audio error:', err));
+      }
+      setIsPlaying(true);
+    }
+  };
+
+  const handleTimelineKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      seek(-5);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      seek(5);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        setCurrentTimeState(0);
+      }
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      if (videoRef.current && duration) {
+        videoRef.current.currentTime = duration;
+        setCurrentTimeState(duration);
+      }
     }
   };
 
@@ -859,21 +1192,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [isCompleted]);
 
-  const formatTime = (secs: number) => {
-    if (isNaN(secs)) return '00:00';
-    const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60);
-    const s = Math.floor(secs % 60);
-    
-    const minutesStr = m.toString().padStart(2, '0');
-    const secondsStr = s.toString().padStart(2, '0');
-
-    if (h > 0) {
-      return `${h}:${minutesStr}:${secondsStr}`;
-    }
-    return `${minutesStr}:${secondsStr}`;
-  };
-
   const handleBookmarkCurrent = () => {
     const note = prompt('Enter a short bookmark note:', `Bookmark at ${formatTime(currentTimeState)}`);
     if (note !== null) {
@@ -1201,30 +1519,276 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           transition: 'opacity 0.25s ease',
           opacity: 1
         }}>
-          {/* Progress Slider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '0.78rem', color: 'white', fontVariationSettings: '"tnum" 1' }}>
-              {formatTime(currentTimeState)}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={duration || 100}
-              step={0.1}
-              value={currentTimeState}
-              onChange={handleSeekChange}
-              style={{
-                flex: 1,
-                cursor: 'pointer',
-                height: '4px',
-                background: `linear-gradient(to right, var(--color-primary) ${(currentTimeState / (duration || 1)) * 100}%, rgba(255,255,255,0.1) ${(currentTimeState / (duration || 1)) * 100}%)`,
-                transition: 'background 0.1s ease'
-              }}
-            />
-            <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', fontVariationSettings: '"tnum" 1' }}>
-              {formatTime(duration)}
-            </span>
-          </div>
+          {/* YouTube-Style Progress Bar with Floating Frame Preview */}
+          {(() => {
+            const barWidth = progressBarRef.current ? progressBarRef.current.clientWidth : 600;
+            const PREVIEW_WIDTH = 210;
+            const HALF_PREVIEW = PREVIEW_WIDTH / 2;
+            const clampedPreviewX = Math.max(HALF_PREVIEW + 8, Math.min(barWidth - HALF_PREVIEW - 8, hoverX));
+            const playedPercent = duration > 0 ? Math.min(100, Math.max(0, (currentTimeState / duration) * 100)) : 0;
+            const hoverPercent = duration > 0 ? Math.min(100, Math.max(0, (hoverTime / duration) * 100)) : 0;
+
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', position: 'relative' }}>
+                <span style={{ 
+                  fontSize: '0.8rem', 
+                  color: '#ffffff', 
+                  fontVariationSettings: '"tnum" 1', 
+                  minWidth: '45px', 
+                  textAlign: 'right', 
+                  userSelect: 'none',
+                  fontWeight: 500
+                }}>
+                  {formatTime(currentTimeState)}
+                </span>
+
+                {/* Custom Interactive Timeline Track */}
+                <div
+                  ref={progressBarRef}
+                  tabIndex={0}
+                  role="slider"
+                  aria-label="Video timeline"
+                  aria-valuemin={0}
+                  aria-valuemax={duration || 100}
+                  aria-valuenow={currentTimeState}
+                  onMouseEnter={handleTimelineMouseEnter}
+                  onMouseLeave={handleTimelineMouseLeave}
+                  onMouseMove={handleTimelineMouseMove}
+                  onMouseDown={handleTimelineMouseDown}
+                  onTouchStart={handleTimelineTouchStart}
+                  onTouchMove={handleTimelineTouchMove}
+                  onTouchEnd={handleTimelineTouchEnd}
+                  onKeyDown={handleTimelineKeyDown}
+                  style={{
+                    flex: 1,
+                    height: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    touchAction: 'none',
+                    outline: 'none'
+                  }}
+                >
+                  {/* Floating YouTube-Style Preview Tooltip */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 'calc(100% + 14px)',
+                    left: `${clampedPreviewX}px`,
+                    transform: 'translateX(-50%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    pointerEvents: 'none',
+                    opacity: (isHoveringTimeline || isScrubbing) ? 1 : 0,
+                    visibility: (isHoveringTimeline || isScrubbing) ? 'visible' : 'hidden',
+                    transition: 'opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+                    zIndex: 35
+                  }}>
+                    {/* Pull up for precise seeking prompt */}
+                    <div style={{
+                      fontSize: '0.73rem',
+                      fontWeight: 500,
+                      color: isPreciseSeeking ? '#38bdf8' : 'rgba(255, 255, 255, 0.85)',
+                      textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+                      marginBottom: '6px',
+                      letterSpacing: '0.01em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      transition: 'color 0.15s ease'
+                    }}>
+                      {isPreciseSeeking ? (
+                        <>
+                          <span style={{ fontSize: '0.8rem' }}>⚡</span>
+                          <span>Precise seeking mode</span>
+                        </>
+                      ) : (
+                        <span>Pull up for precise seeking</span>
+                      )}
+                    </div>
+
+                    {/* Video Thumbnail Preview Card */}
+                    <div style={{
+                      width: '210px',
+                      height: '118px',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: '#000000',
+                      border: isPreciseSeeking ? '1.5px solid #38bdf8' : '1.5px solid rgba(255, 255, 255, 0.3)',
+                      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(0, 0, 0, 0.5)',
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'border-color 0.2s ease'
+                    }}>
+                      <video
+                        ref={previewVideoRef}
+                        src={videoSrc || undefined}
+                        muted
+                        playsInline
+                        preload="auto"
+                        onLoadedMetadata={handlePreviewLoadedMetadata}
+                        onSeeked={handlePreviewSeeked}
+                        onError={handlePreviewError}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          display: 'block',
+                          backgroundColor: '#000000',
+                          pointerEvents: 'none'
+                        }}
+                      />
+                      {isPreviewLoading && (
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'rgba(0, 0, 0, 0.25)',
+                          backdropFilter: 'blur(1px)'
+                        }}>
+                          <div style={{
+                            width: '20px',
+                            height: '20px',
+                            border: '2px solid rgba(255, 255, 255, 0.25)',
+                            borderTopColor: '#ef4444',
+                            borderRadius: '50%',
+                            animation: 'spin 0.6s linear infinite'
+                          }} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Timestamp Pill (e.g. 12:38) */}
+                    <div style={{
+                      marginTop: '6px',
+                      background: 'rgba(32, 32, 36, 0.94)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.18)',
+                      borderRadius: '9999px',
+                      padding: '3px 12px',
+                      color: '#ffffff',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.6)',
+                      fontVariationSettings: '"tnum" 1',
+                      letterSpacing: '0.02em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <span>{formatTime(hoverTime)}</span>
+                      {matchedBookmark && (
+                        <span style={{
+                          color: '#fbbf24',
+                          fontSize: '0.72rem',
+                          fontWeight: 500,
+                          maxWidth: '130px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          • {matchedBookmark.note}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Background Track Bar */}
+                  <div style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: (isHoveringTimeline || isScrubbing) ? '6px' : '4px',
+                    borderRadius: '3px',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    transition: 'height 0.15s ease'
+                  }}>
+                    {/* Ghost Hover Track Bar */}
+                    <div style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: `${hoverPercent}%`,
+                      background: 'rgba(255, 255, 255, 0.35)',
+                      borderRadius: '3px',
+                      opacity: (isHoveringTimeline || isScrubbing) ? 1 : 0,
+                      transition: 'opacity 0.1s ease',
+                      pointerEvents: 'none'
+                    }} />
+
+                    {/* Played Progress Bar (YouTube Red) */}
+                    <div style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: `${playedPercent}%`,
+                      background: '#ef4444',
+                      borderRadius: '3px',
+                      zIndex: 2,
+                      pointerEvents: 'none'
+                    }} />
+
+                    {/* Bookmark Chapter Markers */}
+                    {activeBookmarks.map((bm, idx) => {
+                      const percent = duration > 0 ? (bm.timestamp / duration) * 100 : 0;
+                      if (percent < 0 || percent > 100) return null;
+                      return (
+                        <div
+                          key={bm.id || idx}
+                          title={`${bm.note} (${formatTime(bm.timestamp)})`}
+                          style={{
+                            position: 'absolute',
+                            left: `${percent}%`,
+                            top: 0,
+                            bottom: 0,
+                            width: '2px',
+                            background: '#fbbf24',
+                            zIndex: 3,
+                            transform: 'translateX(-50%)',
+                            pointerEvents: 'none',
+                            borderRadius: '1px'
+                          }}
+                        />
+                      );
+                    })}
+
+                    {/* Scrubber Circular Thumb */}
+                    <div style={{
+                      position: 'absolute',
+                      left: `${playedPercent}%`,
+                      top: '50%',
+                      transform: (isHoveringTimeline || isScrubbing) ? 'translate(-50%, -50%) scale(1)' : 'translate(-50%, -50%) scale(0)',
+                      width: '13px',
+                      height: '13px',
+                      borderRadius: '50%',
+                      background: '#ef4444',
+                      boxShadow: '0 0 6px rgba(239, 68, 68, 0.8), 0 0 0 2px #ffffff',
+                      zIndex: 5,
+                      transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+                      pointerEvents: 'none'
+                    }} />
+                  </div>
+                </div>
+
+                <span style={{ 
+                  fontSize: '0.8rem', 
+                  color: 'rgba(255, 255, 255, 0.7)', 
+                  fontVariationSettings: '"tnum" 1', 
+                  minWidth: '45px', 
+                  userSelect: 'none',
+                  fontWeight: 500
+                }}>
+                  {formatTime(duration)}
+                </span>
+              </div>
+            );
+          })()}
 
           {/* Button Toolbar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

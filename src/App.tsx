@@ -524,6 +524,7 @@ export default function App() {
             onVideoEnded={handleVideoEnded}
             onTimeUpdate={setVideoCurrentTime}
             onAddBookmark={handleAddBookmark}
+            bookmarks={bookmarks}
             hasNextLesson={hasNextLesson}
             isLessonCompleted={!!completedLessons[currentLesson.path]}
             onToggleCompleted={() => handleToggleCompleted(currentLesson.path)}
@@ -1124,7 +1125,7 @@ export default function App() {
             </p>
             <div style={{ marginTop: '12px' }}>
               <a 
-                href="https://teachable-azure.vercel.app/" 
+                href="https://akhil-orbit-player.vercel.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 style={{
@@ -1151,7 +1152,7 @@ export default function App() {
                 }}
               >
                 <ExternalLink size={12} />
-                teachable-azure.vercel.app
+                akhil-orbit-player.vercel.app
               </a>
             </div>
           </div>

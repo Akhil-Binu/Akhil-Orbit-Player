@@ -1,6 +1,6 @@
 # 🪐 Akhil Orbit Player
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-https%3A%2F%2Fteachable--azure.vercel.app%2F-6366f1?style=for-the-badge&logo=vercel&logoColor=white)](https://teachable-azure.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-https%3A%2F%2Fakhil--orbit--player.vercel.app%2F-6366f1?style=for-the-badge&logo=vercel&logoColor=white)](https://akhil-orbit-player.vercel.app/)
 [![Release](https://img.shields.io/badge/Release-v1.2.0-8b5cf6?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Akhil-Binu/teachable/releases)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/Akhil-Binu/teachable/ci.yml?branch=main&style=for-the-badge&logo=github&logoColor=white)](https://github.com/Akhil-Binu/teachable/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -12,7 +12,7 @@
 
 All media rendering, document parsing, archive decompression, note taking, and progress tracking execute **entirely inside your browser**—**zero files are uploaded to any external server.**
 
-🌐 **Live Web Application**: [https://teachable-azure.vercel.app/](https://teachable-azure.vercel.app/)
+🌐 **Live Web Application**: [https://akhil-orbit-player.vercel.app/](https://akhil-orbit-player.vercel.app/)
 
 ---
 
